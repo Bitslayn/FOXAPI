@@ -23,6 +23,9 @@ local playerEvents = {    -- Functions to run when your player gets patted. Uses
 	oncePat = function(entity) -- Fires each time you are patted
 
 	end,
+	whilePat = function(patters) -- Fires every tick while you're patted
+
+	end,
 }
 
 local skullEvents = { -- Similar to the functions above but for when your skull is patted.
@@ -30,6 +33,7 @@ local skullEvents = { -- Similar to the functions above but for when your skull 
 	onUnpat = function(entity, coordinates) end,
 	togglePat = function(entity, isPetted, coordinates) end,
 	oncePat = function(entity, coordinates) end,
+	whilePat = function(patters) end,
 }
 
 --#ENDREGION
@@ -82,6 +86,48 @@ end
 -- 	end
 -- 	return { false, true } -- Cancel particles but not swinging
 -- end
+
+--#ENDREGION
+--#REGION ˚♡ Register whilePat event ♡˚
+
+local lastPat = 0
+local numberOfPatters, numberOfSkullPatters = 0, 0
+local entityPatters, skullPatters = {}, {}
+
+function events.entity_pat(entity, state)
+	lastPat = world.getTime()
+	if state == 0 then
+		numberOfPatters = numberOfPatters + 1
+		table.insert(entityPatters, entity)
+	elseif state == 1 then
+		numberOfPatters = numberOfPatters - 1
+		table.remove(entityPatters, table.find(entityPatters, entity))
+	end
+end
+
+function events.skull_pat(entity, state)
+	lastPat = world.getTime()
+	if state == 0 then
+		numberOfSkullPatters = numberOfSkullPatters + 1
+		table.insert(skullPatters, entity)
+	elseif state == 1 then
+		numberOfSkullPatters = numberOfSkullPatters - 1
+		table.remove(skullPatters, table.find(skullPatters, entity))
+	end
+end
+
+function events.tick()
+	if numberOfPatters > 0 then
+		playerEvents.whilePat(entityPatters)
+	end
+	if numberOfSkullPatters > 0 then
+		skullEvents.whilePat(skullPatters)
+	end
+	if lastPat + FOXAPI.patConfig.holdFor < world.getTime() then
+		numberOfPatters, numberOfSkullPatters = 0, 0
+		entityPatters, skullPatters = {}, {}
+	end
+end
 
 --#ENDREGION
 

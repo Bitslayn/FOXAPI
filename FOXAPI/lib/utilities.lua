@@ -231,7 +231,6 @@ end
 ---@return any key
 ---@nodiscard
 function table.find(list, value)
-  if not table.contains(list, value) then return nil end
   local key
   for k, v in pairs(list) do if value == v then key = k end end
   return key

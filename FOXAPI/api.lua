@@ -15,7 +15,7 @@ local debug = false -- Set this to true to enable logging the amount of modules 
 ---FOX's API
 ---@class FOXAPI
 FOXAPI = setmetatable({}, { __race = {}, __events = {}, __registeredEvents = {} })
-local _ver = { "1.0.1", 2 }
+local _ver = { "1.0.2", 3 }
 
 local apiPath = ...
 
