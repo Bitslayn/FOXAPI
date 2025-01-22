@@ -12,6 +12,12 @@ Handles creating and firing custom events.
 
 local debugMode = false -- Set this to true to log custom event timings when running events:call()
 
+local apiPath = ...
+if not FOXAPI then
+  __race = "events"
+  require(apiPath:match("(.*)lib") .. "api")
+end
+
 --#REGION ˚♡ Custom event registration ♡˚
 
 local FOXMetatable = getmetatable(FOXAPI)

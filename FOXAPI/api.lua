@@ -15,7 +15,7 @@ local debug = false -- Set this to true to enable logging the amount of modules 
 ---FOX's API
 ---@class FOXAPI
 FOXAPI = setmetatable({}, { __race = {}, __events = {}, __registeredEvents = {} })
-local _ver = { "1.0.0", 1 }
+local _ver = { "1.0.1", 2 }
 
 local apiPath = ...
 
@@ -23,6 +23,10 @@ local apiPath = ...
 
 local lib = { "Utilities", "Events" }
 for i = 1, 2 do
+  if i == 2 and __race == "events" then
+    __race = nil
+    return
+  end
   local str = lib[i]
   local path = apiPath .. "/lib/" .. str:lower()
   assert(pcall(function() require(path) end),
