@@ -2,7 +2,7 @@
 
 ## Downloading the API
 
-Download the entire FOXAPI folder containing `FOXAPI\lib`, `FOXAPI\modules` and `FOXAPI\api.lua`. Move that folder to your avatar's directory.
+Download the entire FOXAPI folder containing `FOXAPI\lib`, `FOXAPI\modules` and `FOXAPI\api.lua`. Move that folder to your avatar's directory. Alternatively, you could use this [download link](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FBitslayn%2FFOXAPI%2Ftree%2Fmain%2FFOXAPI) from the Refined Github Chrome extension.
 
 ## Downloading Modules
 
