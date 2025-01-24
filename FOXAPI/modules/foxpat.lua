@@ -4,21 +4,21 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.0
+FOX's Patpat Module v1.0.1
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
-Forked from Auria's patpat
+Forked from Auria's patpat https://github.com/lua-gods/figuraLibraries/blob/main/patpat/patpat.lua
 
 --]]
 
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.0", 1 },
+  _api = { "FOXAPI", "1.0.1", 2 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.0", 1 },
+  _ver = { "1.0.2", 3 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -267,7 +267,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
   end
 
   -- Emit particles
-  if not noHearts and not avatarVars["patpat.noHearts"] and particles:isPresent(cfg.patParticle) then -- Keep old compatibility
+  if not noHearts and not avatarVars["patpat.noHearts"] then -- Keep old compatibility, particles:isPresent(cfg.patParticle) not working on 1.21.x until RC7
     pos = pos - boundingBox.x_z * 0.5 + vec(
       math.random(),
       math.random(),

@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API v1.0.0
+FOX's API v1.0.2
 
 An API containing several modules, each with their own functionality.
 Modules can be added or removed depending on what features you wish to use.
