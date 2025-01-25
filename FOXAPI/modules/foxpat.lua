@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.1
+FOX's Patpat Module v1.0.2
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -15,7 +15,7 @@ Forked from Auria's patpat https://github.com/lua-gods/figuraLibraries/blob/main
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.1", 2 },
+  _api = { "FOXAPI", "1.0.2", 3 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
   _ver = { "1.0.2", 3 },
@@ -103,77 +103,116 @@ local noteBlockImitation = table.gmatch(client.getRegistry("sound_event"),
   '"([%w_:%-%.]-' .. "note_block.imitate" .. '[%w_:%-%.]-)"')
 
 local cache = {
-  uuidObfu = {},    -- [uuid] = obfuscation
-  uuidObfuMap = {}, -- [obfuscation] = uuid
+  uuidObfu = {},     -- [uuid] = obfuscation
+  uuidObfuMap = {},  -- [obfuscation] = uuid
+  coordObfu = {},    -- [coord] = obfuscation
+  coordObfuMap = {}, -- [obfuscation] = coord
 }
 
 local function packUUID(uuid)
-  local packedUUID = ""
+  -- Check if this UUID has been cached
   if not cache.uuidObfu[uuid] then
+    -- Convert small portion of UUID into a string that can be pinged
+    local packedUUID = ""
     local uuidShort = uuid:match("%-(%w*)$")
     for i = 1, 6, 2 do
       packedUUID = packedUUID .. string.char(tonumber(uuidShort:sub(i, i + 1), 16))
     end
+    -- Store caches
     cache.uuidObfu[uuid] = packedUUID
     cache.uuidObfuMap[packedUUID] = uuid
+    return packedUUID
   else
-    packedUUID = cache.uuidObfu[uuid]
+    return cache.uuidObfu[uuid] -- Skip packing and read from cache
   end
-  return packedUUID
 end
 
 local function unpackUUID(packedUUID)
+  -- Check if this UUID has been cached
   if not cache.uuidObfuMap[packedUUID] then
+    -- Convert UUID from string into readable UUID
     local uuidShort = ""
     for i = 1, #packedUUID do
       uuidShort = uuidShort .. string.format("%02x", string.byte(packedUUID:sub(i, i)))
     end
-    -- Get uuid from target entity
+    -- Get UUID from target entity
     local target = player:getTargetedEntity()
-    if target then
-      local targetUUID = target:getUUID()
-      if targetUUID:find(uuidShort) then
-        local uuid = target:getUUID()
-        cache.uuidObfu[uuid] = packedUUID
-        cache.uuidObfuMap[packedUUID] = uuid
-        return uuid
-      end
-    end
+    if not target then return end -- Make sure there is an entity to get UUID from
+    local targetUUID = target:getUUID()
+    -- Check target entity to see if UUID matches
+    if not targetUUID:find(uuidShort) then return end
+    local uuid = target:getUUID()
+    -- Store caches
+    cache.uuidObfu[uuid] = packedUUID
+    cache.uuidObfuMap[packedUUID] = uuid
+    return uuid
   else
-    return cache.uuidObfuMap[packedUUID]
+    return cache.uuidObfuMap[packedUUID] -- Skip unpacking and read from cache
   end
 end
 
 local function packCoord(coord)
-  coord:unpack()
-  local packedCoord = ""
-  for i = 1, 3 do
-    packedCoord = packedCoord .. string.char(coord[i])
+  local entry = table.concat({ coord:unpack() }, ",")
+
+  -- Check if this coordinate has been cached
+  if not cache.coordObfu[entry] then
+    -- Convert coordinate to position relative to chunk cube with combined x and z
+    local blockPosXZ = coord.xz:reduce(16, 16):mul(1, 16)
+    local combinedXZ = blockPosXZ.x + blockPosXZ.y
+    local finalPos = { combinedXZ, coord.y % 16 }
+    -- Convert vec2 coordinate to a string that can be pinged
+    local packedCoord = ""
+    for i = 1, 2 do
+      packedCoord = packedCoord .. string.char(finalPos[i])
+    end
+    -- Store caches
+    cache.coordObfu[entry] = packedCoord
+    cache.coordObfuMap[packedCoord] = coord
+    return packedCoord
+  else
+    return cache.coordObfu[entry] -- Skip packing and read from cache
   end
-  return packedCoord
 end
 
 local function unpackCoord(packedCoord)
-  local coord = {}
-  for i = 1, #packedCoord do
-    coord[i] = string.byte(packedCoord:sub(i, i))
+  -- Get the cubic chunk of the patted block
+  local pos = player:getTargetedBlock():getPos()
+  local chunk = pos.xyz:sub(pos:reduce(16, 16, 16))
+  -- Clear caches if the chunk of the patted block is different
+  if cache.lastChunk ~= chunk then
+    cache.lastChunk = chunk
+    cache.coordObfu, cache.coordObfuMap = {}, {}
   end
-  return coord
+
+  -- Check if this coordinate has been cached
+  if not cache.coordObfuMap[packedCoord] then
+    -- Convert string into vec2 coordinate
+    local coord = {}
+    for i = 1, #packedCoord do
+      coord[i] = string.byte(packedCoord:sub(i, i))
+    end
+    -- Convert vec2 coord into vec3
+    local finalPos = vec(
+      (coord[1] % 16) + chunk.x,
+      coord[2] + chunk.y,
+      (math.floor(coord[1] / 16)) + chunk.z
+    )
+    -- Store caches
+    cache.coordObfu[table.concat({ finalPos:unpack() }, ",")] = packedCoord
+    cache.coordObfuMap[packedCoord] = finalPos
+    return finalPos
+  else
+    return cache.coordObfuMap[packedCoord] -- Skip unpacking and read from cache
+  end
 end
 
 local function getAvatarVarsFromBlock(block)
-  if block.id == "minecraft:player_head" or block.id == "minecraft:player_wall_head" then
-    local entityData = block:getEntityData()
-    if entityData then
-      local skullOwner = entityData.SkullOwner and entityData.SkullOwner.Id and
-          client.intUUIDToString(table.unpack(entityData.SkullOwner.Id))
-      if skullOwner then
-        return world.avatarVars()[skullOwner] or {}
-      end
-    end
-  end
-  return {}
+  if not block.id:match("head") then return {} end
+  return world.avatarVars()[client.intUUIDToString(table.unpack(
+    block:getEntityData().SkullOwner and block:getEntityData().SkullOwner.Id or {}
+  ))] or {}
 end
+
 
 --#ENDREGION
 --#REGION ˚♡ Pat functions ♡˚
@@ -262,6 +301,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
       host:swingArm()
     end
     if type(cfg.patAnimation) == "Animation" then
+      ---@diagnostic disable-next-line: undefined-field
       cfg.patAnimation:play()
     end
   end
@@ -323,11 +363,7 @@ end
 local function foxpatBlockPing(c)
   if not player:isLoaded() then return end
 
-  -- Decrypt position
-  local unpackedPos = vec(table.unpack(unpackCoord(c)))
-  local offset = (unpackedPos / 64):floor()
-  local blockPos = (player:getPos() / 64 + offset * 0.5):floor() * 64
-      + unpackedPos % 64 - 32 * offset
+  local blockPos = unpackCoord(c).xyz
 
   local block = world.getBlockState(blockPos)
   if block:isAir() or block.id == "minecraft:water" or block.id == "minecraft:lava" then return end
@@ -483,7 +519,6 @@ if host:isHost() then
         return
       end
 
-
       local blockVars = getAvatarVarsFromBlock(block)
       if blockVars["patpat.noPats"] then return end -- Keep old compatibility
       if ((not self and firstPat) or (self and firstSelfPat)) and
@@ -494,23 +529,15 @@ if host:isHost() then
       end
 
       local blockPos = block:getPos()
-      local playerPos = player:getPos()
-      local playerOffset = vec(
-        math.abs(playerPos.x % 64 - 32) > 16 and 1 or 0,
-        math.abs(playerPos.y % 64 - 32) > 16 and 1 or 0,
-        math.abs(playerPos.z % 64 - 32) > 16 and 1 or 0
-      )
-      local finalPos = (blockPos + playerOffset * 32) % 64 + playerOffset * 64
-
-      foxpatBlockPing(packCoord(finalPos))
-      pings.foxpatBlock(packCoord(finalPos))
+      local packedCoord = packCoord(blockPos)
+      foxpatBlockPing(packedCoord)
+      pings.foxpatBlock(packedCoord)
     else
       local entityType = entity:getType()
       if not (cfg.entity.whitelist[entityType] or table.contains(cfg.entity.whitelist, "*")) or
           (cfg.entity.blacklist[entityType] or table.contains(cfg.entity.blacklist, "*")) then
         return
       end
-
 
       local entityVars = entity:getVariable()
       if entityVars["patpat.noPats"] then return end -- Keep old compatibility
@@ -522,8 +549,9 @@ if host:isHost() then
       end
 
       local entityUUID = entity:getUUID()
-      foxpatEntityPing(packUUID(entityUUID))
-      pings.foxpatEntity(packUUID(entityUUID))
+      local packedUUID = packUUID(entityUUID)
+      foxpatEntityPing(packedUUID)
+      pings.foxpatEntity(packedUUID)
     end
     if self then
       firstSelfPat = cfg.requireCrouch
