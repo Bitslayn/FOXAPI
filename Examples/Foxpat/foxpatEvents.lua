@@ -67,26 +67,6 @@ function events.skull_pat(entity, state, coordinates)
 	return { noPats, noHearts }
 end
 
--- Uncomment this if you wish to use a custom particle system.
-
--- function events.patting(entity, block, boundingBox, allowHearts)
--- 	if allowHearts then -- Players who do not consent to hearts should be respected. Do NOT play ANY sounds or particles on them if this is false.
--- 		local pos
--- 		if block then
--- 			pos = block:getPos():add(0.5, 0, 0.5)
--- 		elseif entity then
--- 			pos = entity:getPos()
--- 		end
--- 		pos = pos - boundingBox.x_z * 0.5 + vec(
--- 			math.random(),
--- 			math.random(),
--- 			math.random()
--- 		) * boundingBox
--- 		particles["minecraft:heart"]:pos(pos):size(1):spawn()
--- 	end
--- 	return { false, true } -- Cancel particles but not swinging
--- end
-
 --#ENDREGION
 --#REGION ˚♡ Register whilePat event ♡˚
 

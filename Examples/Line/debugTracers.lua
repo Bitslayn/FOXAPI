@@ -1,6 +1,9 @@
 -- Debug tracers
 local fox = require("FOXAPI.api")
-local enable = false
+local enable = false -- Set this to true to enable this script
+
+-- This script should not be put into the FOXAPI modules folder!
+
 local extra = "line" -- "cube", "square", "line", or false
 if host:isHost() then
   if not enable then return end
