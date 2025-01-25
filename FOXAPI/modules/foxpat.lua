@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.0.2", 3 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.2", 3 },
+  _ver = { "1.0.3", 4 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -489,9 +489,6 @@ if host:isHost() then
   --#ENDREGION
 
   foxpat = function(self)
-    if cfg.requireEmptyHand and player:getItem(1).id ~= "minecraft:air" then return end
-    if cfg.requireEmptyOffHand and player:getItem(2).id ~= "minecraft:air" then return end
-
     local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
     local eyeOffset = renderer:getEyeOffset()
     if eyeOffset then myPos = myPos + eyeOffset end
@@ -521,10 +518,16 @@ if host:isHost() then
 
       local blockVars = getAvatarVarsFromBlock(block)
       if blockVars["patpat.noPats"] then return end -- Keep old compatibility
-      if ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and
-          not blockVars["foxpat.actAsInteractable"] and
-          cfg.keycodes.crouch then
+      -- Check crouching
+      if not blockVars["foxpat.actAsInteractable"] and
+          ((not self and firstPat) or (self and firstSelfPat)) and
+          not shiftHeld and cfg.keycodes.crouch then
+        return
+      end
+      -- Check empty hand
+      if not blockVars["foxpat.actAsInteractable"] and
+          (cfg.requireEmptyHand and player:getItem(1).id ~= "minecraft:air") or
+          (cfg.requireEmptyOffHand and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
@@ -541,10 +544,16 @@ if host:isHost() then
 
       local entityVars = entity:getVariable()
       if entityVars["patpat.noPats"] then return end -- Keep old compatibility
-      if ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and
-          not entityVars["foxpat.actAsInteractable"] and
-          cfg.keycodes.crouch then
+      -- Check crouching
+      if not entityVars["foxpat.actAsInteractable"] and
+          ((not self and firstPat) or (self and firstSelfPat)) and
+          not shiftHeld and cfg.keycodes.crouch then
+        return
+      end
+      -- Check empty hand
+      if not entityVars["foxpat.actAsInteractable"] and
+          (cfg.requireEmptyHand and player:getItem(1).id ~= "minecraft:air") or
+          (cfg.requireEmptyOffHand and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
