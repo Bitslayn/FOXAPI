@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API Utilities v1.0.0
+FOX's API Utilities
 
 Contains miscellaneous functions which are shared by my modules.
 

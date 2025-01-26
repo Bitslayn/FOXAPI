@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API Events v1.0.0
+FOX's API Events
 
 Handles creating and firing custom events.
 
@@ -60,6 +60,15 @@ function FOXMetatable.__events:new(eventName)
   FOXMetatable.__registeredEvents[eventName] = {}
   FOXMetatable.__events[eventName:lower()] = event
   FOXMetatable.__events[eventName:upper()] = event
+end
+
+---`FOXAPI` Registers a custom event that can be called like a normal event. The passed table must have both a `register` and `remove` function
+function FOXMetatable.__events:newRaw(eventName, tbl)
+  assert(type(tbl.register) == "function", "Custom event missing a register function!", 2)
+  assert(type(tbl.remove) == "function", "Custom event missing a remove function!", 2)
+  FOXMetatable.__registeredEvents[eventName] = {}
+  FOXMetatable.__events[eventName:lower()] = tbl
+  FOXMetatable.__events[eventName:upper()] = tbl
 end
 
 ---`FOXAPI` Calls a custom event and runs all their functions

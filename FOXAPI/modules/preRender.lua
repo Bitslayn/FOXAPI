@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-Pre Render Event Module v1.0.0
+Pre Render Event Module v1.0.1
 A FOXAPI Module
 
 Registers a custom PRE_RENDER event.
@@ -14,10 +14,10 @@ Registers a custom PRE_RENDER event.
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.0", 1 },
+  _api = { "FOXAPI", "1.0.3", 4 },
   _name = "Pre Render Event",
   _desc = "Registers a custom PRE_RENDER event.",
-  _ver = { "1.0.0", 1 },
+  _ver = { "1.0.1", 2 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -50,7 +50,7 @@ FOXMetatable.__registeredEvents.pre_render = {}
 
 local isHost = host:isHost()
 
-local _PRE_RENDER = {
+events:newRaw("pre_render", {
   clear = function()
     for _, callback in pairs(FOXMetatable.__registeredEvents.pre_render) do
       if type(callback) == "table" then
@@ -72,15 +72,13 @@ local _PRE_RENDER = {
   register = function(_, func, name)
     local random = math.random()
     if name then
-      FOXMetatable.__registeredEvents.pre_render[name] = FOXMetatable.__registeredEvents.pre_render
-          [name] or
-          { _n = 0 }
+      FOXMetatable.__registeredEvents.pre_render[name] =
+          FOXMetatable.__registeredEvents.pre_render[name] or { _n = 0 }
       FOXMetatable.__registeredEvents.pre_render[name][func] = models
           :newPart("_eventsProxy-" .. random, isHost and "Gui" or nil)
           :setPreRender(func)
-      FOXMetatable.__registeredEvents.pre_render[name]._n = FOXMetatable.__registeredEvents
-          .pre_render[name]._n +
-          1
+      FOXMetatable.__registeredEvents.pre_render[name]._n =
+          FOXMetatable.__registeredEvents.pre_render[name]._n + 1
     else
       FOXMetatable.__registeredEvents.pre_render[func] = models
           :newPart("_eventsProxy-" .. random, isHost and "Gui" or nil)
@@ -104,10 +102,7 @@ local _PRE_RENDER = {
     end
     return n
   end,
-}
-
-FOXMetatable.__events.PRE_RENDER = _PRE_RENDER
-FOXMetatable.__events.pre_render = _PRE_RENDER
+})
 
 --#ENDREGION
 

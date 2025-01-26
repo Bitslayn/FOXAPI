@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.2
+FOX's Patpat Module v1.0.4
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -15,10 +15,10 @@ Forked from Auria's patpat https://github.com/lua-gods/figuraLibraries/blob/main
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.2", 3 },
+  _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.3", 4 },
+  _ver = { "1.0.4", 5 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -26,7 +26,8 @@ if not FOXAPI then
 end
 
 --#REGION ˚♡ Configs ♡˚
-FOXAPI.patConfig = {
+FOXAPI.foxpat = {}
+FOXAPI.foxpat.config = {
   --#REGION ˚♡ Simple ♡˚
 
   swingArm = true,                 -- Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
@@ -90,7 +91,7 @@ FOXAPI.patConfig = {
 
 --#REGION ˚♡ Init vars and functions ♡˚
 
-local cfg = FOXAPI.patConfig
+local cfg = FOXAPI.foxpat.config
 
 events:new("entity_pat")
 events:new("skull_pat")
@@ -222,6 +223,7 @@ end
 local myPatters = { entity = {}, skull = {} }
 
 function events.tick()
+  -- Entity pat timers
   for uuid, time in pairs(myPatters.entity) do
     if time <= 0 then
       events:call("entity_pat", world.getEntity(uuid), 1)
@@ -230,6 +232,7 @@ function events.tick()
       myPatters.entity[uuid] = time - 1
     end
   end
+  -- Skull pat timers
   for i, headPatters in pairs(myPatters.skull) do
     local patted = false
     local pos = headPatters.pos
@@ -259,7 +262,7 @@ end)
 avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
   if not x or not y or not z then return end
   time = math.min(time or cfg.holdFor, 100)
-  local pos = vec(x, y, z)
+  local pos = vec(math.floor(x), y, math.floor(z))
   local i = tostring(pos)
   local patters = myPatters.skull[i]
   if not patters then
@@ -289,7 +292,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
 
   -- Call events for when the player is patting
   local ret2 = events:call("patting", entity, block, boundingBox,
-    noHearts or avatarVars["patpat.noHearts"] and false or true) -- Keep old compatibility
+    not (noHearts or avatarVars["patpat.noHearts"])) -- Keep old compatibility
 
   -- Process returns from patting events
   returns = parseReturns(ret2)
