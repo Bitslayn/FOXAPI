@@ -14,11 +14,10 @@ Lets you draw lines.
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.0", 1 },
+  _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Line Module",
   _desc = "Lets you draw lines.",
-  _require = { "Pre Render Event", "1.0.0", 1 },
-  _ver = { "1.0.0", 1 },
+  _ver = { "1.0.1", 2 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -558,8 +557,8 @@ FOXAPI.line.clear = _clearLines
 
 --#ENDREGION
 
-function events.pre_render()
+models:newPart("_eventsProxy", "Gui"):setPreRender(function()
   for _, line in pairs(FOXAPI.lines) do line[2]() end
-end
+end)
 
 return _module
