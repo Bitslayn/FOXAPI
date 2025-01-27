@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.7
+FOX's Patpat Module v1.0.8
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.7", 8 },
+  _ver = { "1.0.8", 9 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -289,7 +289,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
     end
     if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
       FOXAPI.foxpat.config.patAnimation:play()
-    elseif type(FOXAPI.foxpat.config.patAnimation) == "Table" then
+    elseif type(FOXAPI.foxpat.config.patAnimation) == "table" then
       for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
         if type(anim) == "Animation" then
           anim:play()
@@ -319,7 +319,7 @@ function events.tick()
   if patTimer == 0 then
     if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
       FOXAPI.foxpat.config.patAnimation:stop()
-    elseif type(FOXAPI.foxpat.config.patAnimation) == "Table" then
+    elseif type(FOXAPI.foxpat.config.patAnimation) == "table" then
       for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
         if type(anim) == "Animation" then
           anim:stop()
