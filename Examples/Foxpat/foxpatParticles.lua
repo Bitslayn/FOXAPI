@@ -15,7 +15,7 @@ function events.patting(entity, block, boundingBox, allowHearts)
 			math.random(),
 			math.random()
 		) * boundingBox
-		particles["minecraft:heart"]:pos(pos):size(1):spawn()
+		particles["minecraft:heart"]:pos(pos):scale(1):spawn()
 	end
 	return { false, true } -- Cancel particles but not swinging
 end

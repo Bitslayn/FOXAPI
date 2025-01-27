@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.4
+FOX's Patpat Module v1.0.5
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,45 +18,17 @@ local _module = {
   _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.4", 5 },
+  _ver = { "1.0.5", 6 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
   require(apiPath:match("(.*)modules") .. "api")
 end
 
---#REGION ˚♡ Configs ♡˚
-FOXAPI.foxpat = {}
-FOXAPI.foxpat.config = {
-  --#REGION ˚♡ Simple ♡˚
+-- Looking for configs? They've been moved to Examples\Foxpat\foxpatConfig.lua in github
+--#REGION ˚♡ Whitelists/blacklists ♡˚
 
-  swingArm = true,                 -- Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
-  patAnimation = nil,              -- What animation should be played while you're patting.
-  patParticle = "minecraft:heart", -- What particle should play while you're patting. Can be set to nil.
-
-  playMobSounds = true,            -- Whether patting a mob plays a sound.
-  mobSoundPitch = 1.5,             -- Set the pitch mob sounds will be played at.
-  playNoteSounds = true,           -- Whether patting a player head plays the noteblock sound associated with that head.
-  noteSoundPitch = 1.5,            -- Set the pitch player head noteblock sounds will be played at.
-
-  requireCrouch = false,           -- Whether you have to be crouching after your first crouch to continue patting.
-  requireEmptyHand = false,        -- Whether an empty hand is required for patting.
-  requireEmptyOffHand = false,     -- Whether an empty offhand is required for patting.
-
-  --#ENDREGION
-  --#REGION ˚♡ Advanced ♡˚
-
-  actAsInteractable = false, -- If you want another player to simply right click you or your player head without crouching or while holding an item.
-
-  patDelay = 3,              -- How often patting should occur in ticks.
-  holdFor = 10,              -- How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than patDelay.
-  -- boundingBox = vec(0.6, 1.7999, 0.6), -- A custom bounding box that defines where people can pat you and the area that hearts get spawned on you.
-
-  keycodes = {
-    pat = "key.mouse.right",
-    patSelf = "key.mouse.middle",
-    crouch = "key.keyboard.left.shift", -- If this is set to nil, you don't have to crouch to start patting.
-  },
+local lists = {
 
   -- List of blocks that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
   block = {
@@ -82,8 +54,6 @@ FOXAPI.foxpat.config = {
       "minecraft:armor_stand",
     },
   },
-
-  --#ENDREGION
 }
 --#ENDREGION
 
@@ -91,6 +61,8 @@ FOXAPI.foxpat.config = {
 
 --#REGION ˚♡ Init vars and functions ♡˚
 
+FOXAPI.foxpat = {}
+FOXAPI.foxpat.config = {}
 local cfg = FOXAPI.foxpat.config
 
 events:new("entity_pat")
@@ -98,7 +70,18 @@ events:new("skull_pat")
 events:new("patting")
 
 avatar:store("patpat.boundingBox", cfg.boundingBox)
-avatar:store("foxpat.actAsInteractable", cfg.actAsInteractable)
+avatar:store("foxpat.actAsInteractable",
+  cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false))
+
+function events.tick()
+  if player:getVariable("foxpat.boundingBox") ~= cfg.boundingBox then
+    avatar:store("foxpat.boundingBox", cfg.boundingBox)
+  end
+  if player:getVariable("foxpat.actAsInteractable") ~= cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false) then
+    avatar:store("foxpat.actAsInteractable",
+      cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false))
+  end
+end
 
 local noteBlockImitation = table.gmatch(client.getRegistry("sound_event"),
   '"([%w_:%-%.]-' .. "note_block.imitate" .. '[%w_:%-%.]-)"')
@@ -252,7 +235,7 @@ function events.tick()
 end
 
 avatar:store("petpet", function(uuid, time)
-  time = math.clamp(time or 0, cfg.holdFor, 100)
+  time = math.clamp(time or 0, cfg.holdFor or 10, 100)
   local entity = world.getEntity(uuid)
   local prev = myPatters.entity[uuid]
   myPatters.entity[uuid] = time
@@ -261,7 +244,7 @@ end)
 
 avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
   if not x or not y or not z then return end
-  time = math.min(time or cfg.holdFor, 100)
+  time = math.min(time or (cfg.holdFor or 10), 100)
   local pos = vec(math.floor(x), y, math.floor(z))
   local i = tostring(pos)
   local patters = myPatters.skull[i]
@@ -300,7 +283,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
 
   -- Play pat animation and swinging
   if not noPats then
-    if cfg.swingArm then
+    if cfg.swingArm or (type(cfg.swingArm) == "nil" and true) then
       host:swingArm()
     end
     if type(cfg.patAnimation) == "Animation" then
@@ -316,7 +299,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
       math.random(),
       math.random()
     ) * boundingBox
-    particles[cfg.patParticle]:pos(pos):size(1):spawn()
+    particles[cfg.patParticle or "minecraft:heart"]:pos(pos):size(1):spawn()
   end
 end
 
@@ -333,11 +316,12 @@ local function foxpatEntityPing(u)
   if not entity then return end
 
   -- Play sounds for entities
-  if cfg.playMobSounds and not entity:isPlayer() then
-    local soundName = string.format("minecraft:entity.%s.ambient",
-      entity:getType():match("minecraft:(.*)"))
+  if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
+    local soundName = string.format("%s:entity.%s.ambient",
+      entity:getType():match("^(.-):(.-)$"))
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(entity:getPos()):setPitch(cfg.mobSoundPitch or 1):play()
+      sounds[soundName]:setPos(entity:getPos()):setPitch((cfg.mobSoundPitch or 1) *
+      ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5)):play()
     end
   end
 
@@ -351,7 +335,7 @@ local function foxpatEntityPing(u)
   end
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet"], myUuid, cfg.holdFor)
+  local _, ret = pcall(avatarVars["petpet"], myUuid, cfg.holdFor or 10)
   patResponse(avatarVars, ret, entity, nil, boundingBox, pos)
 end
 
@@ -372,9 +356,9 @@ local function foxpatBlockPing(c)
   if block:isAir() or block.id == "minecraft:water" or block.id == "minecraft:lava" then return end
 
   -- Play sounds for skulls
-  if cfg.playNoteSounds then
+  if cfg.playNoteSounds or (type(cfg.playNoteSounds) == "nil" and true) then
     local blockData = block:getEntityData()
-    local blockMatch = block.id:match("minecraft:(.*)_")
+    local blockMatch = block.id:match(":(.-)_")
     local soundName
     if blockMatch then
       soundName = blockData and blockData.note_block_sound or
@@ -392,7 +376,7 @@ local function foxpatBlockPing(c)
   local boundingBox = blockShape[2]:sub(blockShape[1]):add(0.3, 0, 0.3)
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, cfg.holdFor,
+  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, cfg.holdFor or 10,
     blockPos:unpack())
   patResponse(avatarVars, ret, nil, block, boundingBox, blockPos:add(0.5, 0, 0.5))
 end
@@ -403,6 +387,11 @@ function pings.foxpatBlock(...)
 end
 
 --#ENDREGION
+
+--#ENDREGION
+
+--#ENDREGION
+--#REGION ˚♡ Host ♡˚
 
 if host:isHost() then
   --#REGION ˚♡ Unpack whitelists/blacklists ♡˚
@@ -430,66 +419,97 @@ if host:isHost() then
     config.blacklist = table.invert(config.blacklist)
   end
 
-  processRegistry(client.getRegistry("minecraft:entity_type"), cfg.entity)
-  processRegistry(client.getRegistry("minecraft:block"), cfg.block)
+  processRegistry(client.getRegistry("minecraft:entity_type"), lists.entity)
+  processRegistry(client.getRegistry("minecraft:block"), lists.block)
 
   --#ENDREGION
+  --#REGION ˚♡ Init vars ♡˚
 
   local foxpat = function(self) end
   local shiftHeld
   local patting, patTime, firstPat = false, 0, true
   local pattingSelf, patSelfTime, firstSelfPat = false, 0, true
 
-  local crouchButton = keybinds:newKeybind("FOXPat - Crouch",
-    cfg.keycodes.crouch or "key.keyboard.unknown")
-  local patButton = keybinds:newKeybind("FOXPat - Pat", cfg.keycodes.pat)
-  local patSelfButton = keybinds:newKeybind("FOXPat - Pat Self", cfg.keycodes.patSelf)
+  local configFile = "FOXAPI"
+  local configAPI = config:loadFrom(configFile, "foxpat") or {
+    keybinds = {
+      crouch = "key.keyboard.left.shift",
+      pat = "key.mouse.right",
+      patSelf = "key.mouse.middle",
+    },
+  }
+  config:saveTo(configFile, "foxpat", configAPI)
 
+  --#ENDREGION
   --#REGION ˚♡ Keybinds ♡˚
 
-  crouchButton.press = function() shiftHeld = true end
-  crouchButton.release = function() shiftHeld = false end
+  ---@type Keybind[]
+  local buttons = {
+    crouch = keybinds
+        :newKeybind("FOXPat - Crouch", "key.keyboard.left.shift")
+        :setKey(configAPI.keybinds.crouch or "key.keyboard.left.shift"),
+    pat = keybinds
+        :newKeybind("FOXPat - Pat", "key.mouse.right")
+        :setKey(configAPI.keybinds.pat or "key.mouse.right"),
+    patSelf = keybinds
+        :newKeybind("FOXPat - Pat Self", "key.mouse.middle")
+        :setKey(configAPI.keybinds.patSelf or "key.mouse.middle"),
+  }
 
-  patButton.press = function()
+  function events.tick()
+    if host:getScreen() ~= "org.figuramc.figura.gui.screens.KeybindScreen" then return end
+    for key, keyCode in pairs(configAPI.keybinds) do
+      if buttons[key]:getKey() ~= keyCode then
+        configAPI.keybinds[key] = buttons[key]:getKey()
+        config:saveTo(configFile, "foxpat", configAPI)
+      end
+    end
+  end
+
+  buttons.crouch:onPress(function() shiftHeld = true end)
+  buttons.crouch:onRelease(function() shiftHeld = false end)
+
+  buttons.pat:onPress(function()
     if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
       patting = true
       foxpat()
     end
-  end
-  patButton.release = function()
+  end)
+  buttons.pat:onRelease(function()
     patting = false
     firstPat = true
     patTime = 0
-  end
+  end)
 
-  patSelfButton.press = function()
+  buttons.patSelf:onPress(function()
     if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
       pattingSelf = true
       foxpat(true)
     end
-  end
-  patSelfButton.release = function()
+  end)
+  buttons.patSelf:onRelease(function()
     pattingSelf = false
     firstSelfPat = true
     patSelfTime = 0
-  end
+  end)
 
   function events.tick()
     if patting then
       patTime = patTime + 1
-      if patTime % cfg.patDelay == 0 then
+      if patTime % (cfg.patDelay or 3) == 0 then
         foxpat()
       end
     end
     if pattingSelf then
       patSelfTime = patSelfTime + 1
-      if patSelfTime % cfg.patDelay == 0 then
+      if patSelfTime % (cfg.patDelay or 3) == 0 then
         foxpat(true)
       end
     end
   end
 
   --#ENDREGION
+  --#REGION ˚♡ Main pat function ♡˚
 
   foxpat = function(self)
     local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
@@ -514,8 +534,8 @@ if host:isHost() then
     end
 
     if targetType == "block" then
-      if not (cfg.block.whitelist[block.id] or table.contains(cfg.block.whitelist, "*")) or
-          (cfg.block.blacklist[block.id] or table.contains(cfg.block.blacklist, "*")) then
+      if not (lists.block.whitelist[block.id] or table.contains(lists.block.whitelist, "*")) or
+          (lists.block.blacklist[block.id] or table.contains(lists.block.blacklist, "*")) then
         return
       end
 
@@ -524,13 +544,13 @@ if host:isHost() then
       -- Check crouching
       if not blockVars["foxpat.actAsInteractable"] and
           ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and cfg.keycodes.crouch then
+          not shiftHeld and buttons.crouch:getID() ~= -1 then
         return
       end
       -- Check empty hand
       if not blockVars["foxpat.actAsInteractable"] and
-          (cfg.requireEmptyHand and player:getItem(1).id ~= "minecraft:air") or
-          (cfg.requireEmptyOffHand and player:getItem(2).id ~= "minecraft:air") then
+          ((cfg.requireEmptyHand or (type(cfg.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
+          ((cfg.requireEmptyOffHand or (type(cfg.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
@@ -540,8 +560,8 @@ if host:isHost() then
       pings.foxpatBlock(packedCoord)
     else
       local entityType = entity:getType()
-      if not (cfg.entity.whitelist[entityType] or table.contains(cfg.entity.whitelist, "*")) or
-          (cfg.entity.blacklist[entityType] or table.contains(cfg.entity.blacklist, "*")) then
+      if not (lists.entity.whitelist[entityType] or table.contains(lists.entity.whitelist, "*")) or
+          (lists.entity.blacklist[entityType] or table.contains(lists.entity.blacklist, "*")) then
         return
       end
 
@@ -550,13 +570,13 @@ if host:isHost() then
       -- Check crouching
       if not entityVars["foxpat.actAsInteractable"] and
           ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and cfg.keycodes.crouch then
+          not shiftHeld and buttons.crouch:getID() ~= -1 then
         return
       end
       -- Check empty hand
       if not entityVars["foxpat.actAsInteractable"] and
-          (cfg.requireEmptyHand and player:getItem(1).id ~= "minecraft:air") or
-          (cfg.requireEmptyOffHand and player:getItem(2).id ~= "minecraft:air") then
+          ((cfg.requireEmptyHand or (type(cfg.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
+          ((cfg.requireEmptyOffHand or (type(cfg.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
@@ -566,9 +586,9 @@ if host:isHost() then
       pings.foxpatEntity(packedUUID)
     end
     if self then
-      firstSelfPat = cfg.requireCrouch
+      firstSelfPat = cfg.requireCrouch or (type(cfg.requireCrouch) == "nil" and false)
     else
-      firstPat = cfg.requireCrouch
+      firstPat = cfg.requireCrouch or (type(cfg.requireCrouch) == "nil" and false)
     end
   end
 end
