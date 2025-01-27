@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.5
+FOX's Patpat Module v1.0.6
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.5", 6 },
+  _ver = { "1.0.6", 7 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -63,23 +63,24 @@ local lists = {
 
 FOXAPI.foxpat = {}
 FOXAPI.foxpat.config = {}
-local cfg = FOXAPI.foxpat.config
 
 events:new("entity_pat")
 events:new("skull_pat")
 events:new("patting")
 
-avatar:store("patpat.boundingBox", cfg.boundingBox)
+avatar:store("patpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
 avatar:store("foxpat.actAsInteractable",
-  cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false))
+  FOXAPI.foxpat.config.actAsInteractable or
+  (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false))
 
 function events.tick()
-  if player:getVariable("foxpat.boundingBox") ~= cfg.boundingBox then
-    avatar:store("foxpat.boundingBox", cfg.boundingBox)
+  if player:getVariable("foxpat.boundingBox") ~= FOXAPI.foxpat.config.boundingBox then
+    avatar:store("foxpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
   end
-  if player:getVariable("foxpat.actAsInteractable") ~= cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false) then
+  if player:getVariable("foxpat.actAsInteractable") ~= FOXAPI.foxpat.config.actAsInteractable or (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false) then
     avatar:store("foxpat.actAsInteractable",
-      cfg.actAsInteractable or (type(cfg.actAsInteractable) == "nil" and false))
+      FOXAPI.foxpat.config.actAsInteractable or
+      (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false))
   end
 end
 
@@ -235,7 +236,7 @@ function events.tick()
 end
 
 avatar:store("petpet", function(uuid, time)
-  time = math.clamp(time or 0, cfg.holdFor or 10, 100)
+  time = math.clamp(time or 0, FOXAPI.foxpat.config.holdFor or 10, 100)
   local entity = world.getEntity(uuid)
   local prev = myPatters.entity[uuid]
   myPatters.entity[uuid] = time
@@ -244,7 +245,7 @@ end)
 
 avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
   if not x or not y or not z then return end
-  time = math.min(time or (cfg.holdFor or 10), 100)
+  time = math.min(time or (FOXAPI.foxpat.config.holdFor or 10), 100)
   local pos = vec(math.floor(x), y, math.floor(z))
   local i = tostring(pos)
   local patters = myPatters.skull[i]
@@ -283,23 +284,23 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
 
   -- Play pat animation and swinging
   if not noPats then
-    if cfg.swingArm or (type(cfg.swingArm) == "nil" and true) then
+    if FOXAPI.foxpat.config.swingArm or (type(FOXAPI.foxpat.config.swingArm) == "nil" and true) then
       host:swingArm()
     end
-    if type(cfg.patAnimation) == "Animation" then
+    if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
       ---@diagnostic disable-next-line: undefined-field
-      cfg.patAnimation:play()
+      FOXAPI.foxpat.config.patAnimation:play()
     end
   end
 
   -- Emit particles
-  if not noHearts and not avatarVars["patpat.noHearts"] then -- Keep old compatibility, particles:isPresent(cfg.patParticle) not working on 1.21.x until RC7
+  if not noHearts and not avatarVars["patpat.noHearts"] then -- Keep old compatibility, particles:isPresent(FOXAPI.foxpat.config.patParticle) not working on 1.21.x until RC7
     pos = pos - boundingBox.x_z * 0.5 + vec(
       math.random(),
       math.random(),
       math.random()
     ) * boundingBox
-    particles[cfg.patParticle or "minecraft:heart"]:pos(pos):size(1):spawn()
+    particles[FOXAPI.foxpat.config.patParticle or "minecraft:heart"]:pos(pos):size(1):spawn()
   end
 end
 
@@ -316,12 +317,12 @@ local function foxpatEntityPing(u)
   if not entity then return end
 
   -- Play sounds for entities
-  if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
+  if (FOXAPI.foxpat.config.playMobSounds or (type(FOXAPI.foxpat.config.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
     local soundName = string.format("%s:entity.%s.ambient",
       entity:getType():match("^(.-):(.-)$"))
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(entity:getPos()):setPitch((cfg.mobSoundPitch or 1) *
-      ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5)):play()
+      sounds[soundName]:setPos(entity:getPos()):setPitch((FOXAPI.foxpat.config.mobSoundPitch or 1) *
+        ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5)):play()
     end
   end
 
@@ -335,7 +336,7 @@ local function foxpatEntityPing(u)
   end
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet"], myUuid, cfg.holdFor or 10)
+  local _, ret = pcall(avatarVars["petpet"], myUuid, FOXAPI.foxpat.config.holdFor or 10)
   patResponse(avatarVars, ret, entity, nil, boundingBox, pos)
 end
 
@@ -356,7 +357,7 @@ local function foxpatBlockPing(c)
   if block:isAir() or block.id == "minecraft:water" or block.id == "minecraft:lava" then return end
 
   -- Play sounds for skulls
-  if cfg.playNoteSounds or (type(cfg.playNoteSounds) == "nil" and true) then
+  if FOXAPI.foxpat.config.playNoteSounds or (type(FOXAPI.foxpat.config.playNoteSounds) == "nil" and true) then
     local blockData = block:getEntityData()
     local blockMatch = block.id:match(":(.-)_")
     local soundName
@@ -365,7 +366,7 @@ local function foxpatBlockPing(c)
           table.match(noteBlockImitation, '"([%w_:%-%.]-' .. blockMatch .. '[%w_:%-%.]-)"')
     end
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(blockPos):setPitch(cfg.noteSoundPitch or 1):play()
+      sounds[soundName]:setPos(blockPos):setPitch(FOXAPI.foxpat.config.noteSoundPitch or 1):play()
     end
   end
 
@@ -376,7 +377,7 @@ local function foxpatBlockPing(c)
   local boundingBox = blockShape[2]:sub(blockShape[1]):add(0.3, 0, 0.3)
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, cfg.holdFor or 10,
+  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, FOXAPI.foxpat.config.holdFor or 10,
     blockPos:unpack())
   patResponse(avatarVars, ret, nil, block, boundingBox, blockPos:add(0.5, 0, 0.5))
 end
@@ -496,13 +497,13 @@ if host:isHost() then
   function events.tick()
     if patting then
       patTime = patTime + 1
-      if patTime % (cfg.patDelay or 3) == 0 then
+      if patTime % (FOXAPI.foxpat.config.patDelay or 3) == 0 then
         foxpat()
       end
     end
     if pattingSelf then
       patSelfTime = patSelfTime + 1
-      if patSelfTime % (cfg.patDelay or 3) == 0 then
+      if patSelfTime % (FOXAPI.foxpat.config.patDelay or 3) == 0 then
         foxpat(true)
       end
     end
@@ -549,8 +550,8 @@ if host:isHost() then
       end
       -- Check empty hand
       if not blockVars["foxpat.actAsInteractable"] and
-          ((cfg.requireEmptyHand or (type(cfg.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
-          ((cfg.requireEmptyOffHand or (type(cfg.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
+          ((FOXAPI.foxpat.config.requireEmptyHand or (type(FOXAPI.foxpat.config.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
+          ((FOXAPI.foxpat.config.requireEmptyOffHand or (type(FOXAPI.foxpat.config.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
@@ -575,8 +576,8 @@ if host:isHost() then
       end
       -- Check empty hand
       if not entityVars["foxpat.actAsInteractable"] and
-          ((cfg.requireEmptyHand or (type(cfg.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
-          ((cfg.requireEmptyOffHand or (type(cfg.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
+          ((FOXAPI.foxpat.config.requireEmptyHand or (type(FOXAPI.foxpat.config.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
+          ((FOXAPI.foxpat.config.requireEmptyOffHand or (type(FOXAPI.foxpat.config.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
         return
       end
 
@@ -586,9 +587,11 @@ if host:isHost() then
       pings.foxpatEntity(packedUUID)
     end
     if self then
-      firstSelfPat = cfg.requireCrouch or (type(cfg.requireCrouch) == "nil" and false)
+      firstSelfPat = FOXAPI.foxpat.config.requireCrouch or
+      (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
     else
-      firstPat = cfg.requireCrouch or (type(cfg.requireCrouch) == "nil" and false)
+      firstPat = FOXAPI.foxpat.config.requireCrouch or
+      (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
     end
   end
 end
