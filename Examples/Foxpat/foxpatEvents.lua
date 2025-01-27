@@ -103,7 +103,7 @@ function events.tick()
 	if numberOfSkullPatters > 0 then
 		skullEvents.whilePat(skullPatters)
 	end
-	if lastPat + FOXAPI.patConfig.holdFor < world.getTime() then
+	if lastPat + FOXAPI.foxpat.config.holdFor < world.getTime() then
 		numberOfPatters, numberOfSkullPatters = 0, 0
 		entityPatters, skullPatters = {}, {}
 	end
