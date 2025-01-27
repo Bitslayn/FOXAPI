@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.6
+FOX's Patpat Module v1.0.7
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.0.3", 4 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.6", 7 },
+  _ver = { "1.0.7", 8 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -288,8 +288,13 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
       host:swingArm()
     end
     if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
-      ---@diagnostic disable-next-line: undefined-field
       FOXAPI.foxpat.config.patAnimation:play()
+    elseif type(FOXAPI.foxpat.config.patAnimation) == "Table" then
+      for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
+        if type(anim) == "Animation" then
+          anim:play()
+        end
+      end
     end
   end
 
@@ -306,6 +311,23 @@ end
 
 local vector3Index = figuraMetatables.Vector3.__index
 local myUuid = avatar:getUUID()
+
+local patTimer = 0
+function events.tick()
+  if patTimer == 0 then return end
+  patTimer = patTimer - 1
+  if patTimer == 0 then
+    if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
+      FOXAPI.foxpat.config.patAnimation:stop()
+    elseif type(FOXAPI.foxpat.config.patAnimation) == "Table" then
+      for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
+        if type(anim) == "Animation" then
+          anim:stop()
+        end
+      end
+    end
+  end
+end
 
 --#REGION ˚♡ Entity ♡˚
 
@@ -338,6 +360,7 @@ local function foxpatEntityPing(u)
   -- Call petpet function and process avatar reaction
   local _, ret = pcall(avatarVars["petpet"], myUuid, FOXAPI.foxpat.config.holdFor or 10)
   patResponse(avatarVars, ret, entity, nil, boundingBox, pos)
+  patTimer = FOXAPI.foxpat.config.holdFor or 10
 end
 
 function pings.foxpatEntity(...)
@@ -380,6 +403,7 @@ local function foxpatBlockPing(c)
   local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, FOXAPI.foxpat.config.holdFor or 10,
     blockPos:unpack())
   patResponse(avatarVars, ret, nil, block, boundingBox, blockPos:add(0.5, 0, 0.5))
+  patTimer = FOXAPI.foxpat.config.holdFor or 10
 end
 
 function pings.foxpatBlock(...)
@@ -588,10 +612,10 @@ if host:isHost() then
     end
     if self then
       firstSelfPat = FOXAPI.foxpat.config.requireCrouch or
-      (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
+          (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
     else
       firstPat = FOXAPI.foxpat.config.requireCrouch or
-      (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
+          (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
     end
   end
 end
