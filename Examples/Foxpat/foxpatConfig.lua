@@ -2,7 +2,6 @@ require("FOXAPI.api")
 
 -- This script should not be put into the FOXAPI modules folder!
 
-FOXAPI.foxpat = {}
 FOXAPI.foxpat.config = {
   swingArm = true,                 -- Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
   patAnimation = nil,              -- What animation should be played while you're patting.
