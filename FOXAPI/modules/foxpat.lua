@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.9
+FOX's Patpat Module v1.0.10
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.0", 5 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.9", 10 },
+  _ver = { "1.0.10", 11 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -641,7 +641,7 @@ local FOXMetatable = getmetatable(FOXAPI)
 ---@alias Event.SkullPat.func
 ---| fun(patter?: Player, state?: Event.Pat.state, coordinates?: Vector3): (cancel: boolean|boolean[]?)
 ---@alias Event.Patting.func
----| fun(entity?: Player, block?: BlockState, boundingBox?: Vector3, allowHearts?: boolean): (cancel: boolean|boolean[]?)
+---| fun(entity?: Entity, block?: BlockState, boundingBox?: Vector3, allowHearts?: boolean): (cancel: boolean|boolean[]?)
 ---@class EventsAPI
 ---`FOXAPI` This event runs when you get patted or unpatted.
 ---> ```lua
@@ -708,7 +708,7 @@ FOXMetatable.__events = FOXMetatable.__events
 ---@field requireEmptyOffHand boolean? Defaults to `false`<br>Whether an empty offhand is required for patting.
 ---@field actAsInteractable boolean? Defaults to `false`<br>If you want another player to simply right click you or your player head without crouching or while holding an item.
 ---@field patDelay number? Defaults to `3`<br>How often patting should occur in ticks.
----@field holdFor number? Defaults to `10`<br>How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than patDelay.
+---@field holdFor number? Defaults to `10`<br>How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than `patDelay`.
 ---@field boundingBox Vector3? A custom bounding box that defines where people can pat you and the area that hearts get spawned on you.
 FOXAPI.foxpat.config = FOXAPI.foxpat.config
 
