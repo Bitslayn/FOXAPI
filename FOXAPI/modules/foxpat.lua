@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.8
+FOX's Patpat Module v1.0.9
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -15,10 +15,10 @@ Forked from Auria's patpat https://github.com/lua-gods/figuraLibraries/blob/main
 local apiPath, moduleName = ...
 assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
 local _module = {
-  _api = { "FOXAPI", "1.0.3", 4 },
+  _api = { "FOXAPI", "1.1.0", 5 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.8", 9 },
+  _ver = { "1.0.9", 10 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -305,7 +305,7 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
       math.random(),
       math.random()
     ) * boundingBox
-    particles[FOXAPI.foxpat.config.patParticle or "minecraft:heart"]:pos(pos):size(1):spawn()
+    particles[FOXAPI.foxpat.config.patParticle or "minecraft:heart"]:pos(pos):scale(1):spawn()
   end
 end
 
@@ -344,7 +344,8 @@ local function foxpatEntityPing(u)
       entity:getType():match("^(.-):(.-)$"))
     if sounds:isPresent(soundName) then
       sounds[soundName]:setPos(entity:getPos()):setPitch((FOXAPI.foxpat.config.mobSoundPitch or 1) *
-        ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5)):play()
+        ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5) +
+        (math.random() - 0.5) * (FOXAPI.foxpat.config.mobSoundRange or 0.25)):play()
     end
   end
 
@@ -389,7 +390,8 @@ local function foxpatBlockPing(c)
           table.match(noteBlockImitation, '"([%w_:%-%.]-' .. blockMatch .. '[%w_:%-%.]-)"')
     end
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(blockPos):setPitch(FOXAPI.foxpat.config.noteSoundPitch or 1):play()
+      sounds[soundName]:setPos(blockPos):setPitch((FOXAPI.foxpat.config.noteSoundPitch or 1) +
+        (math.random() - 0.5) * (FOXAPI.foxpat.config.noteSoundRange or 0.25)):play()
     end
   end
 
@@ -690,6 +692,25 @@ local FOXMetatable = getmetatable(FOXAPI)
 ---> A callback that is given the data of the entity you're patting or nil, and the block you are patting or nil, the bounding box, and if the player you're patting allows hearts or not.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field PATTING Event.Patting | Event.Patting.func
 FOXMetatable.__events = FOXMetatable.__events
+
+---@class foxpat.config
+---@field swingArm boolean? Defaults to `true`<br>Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
+---@field patAnimation Animation? What animation should be played while you're patting.
+---@field patParticle Minecraft.particleID? Defaults to `"minecraft:heart"`<br>What particle should play while you're patting.
+---@field playMobSounds boolean? Defaults to `true`<br>Whether patting a mob plays a sound.
+---@field mobSoundPitch number? Defaults to `1`<br>The pitch mob sounds will be played at.
+---@field mobSoundRange number? Defaults to `0.25`<br>How varied the mob sound pitch will be.
+---@field playNoteSounds boolean? Defaults to `true`<br>Whether patting a player head plays the noteblock sound associated with that head.
+---@field noteSoundPitch number? Defaults to `1`<br>Set the pitch player head noteblock sounds will be played at.
+---@field noteSoundRange number? Defaults to `0.25`<br>How varied the noteblock sound pitch will be.
+---@field requireCrouch boolean? Defaults to `false`<br>Whether you have to be crouching after your first crouch to continue patting.
+---@field requireEmptyHand boolean? Defaults to `true`<br>Whether an empty hand is required for patting.
+---@field requireEmptyOffHand boolean? Defaults to `false`<br>Whether an empty offhand is required for patting.
+---@field actAsInteractable boolean? Defaults to `false`<br>If you want another player to simply right click you or your player head without crouching or while holding an item.
+---@field patDelay number? Defaults to `3`<br>How often patting should occur in ticks.
+---@field holdFor number? Defaults to `10`<br>How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than patDelay.
+---@field boundingBox Vector3? A custom bounding box that defines where people can pat you and the area that hearts get spawned on you.
+FOXAPI.foxpat.config = FOXAPI.foxpat.config
 
 --#ENDREGION
 
