@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API v1.1.1
+FOX's API v1.1.2
 
 An API containing several modules, each with their own functionality.
 Modules can be added or removed depending on what features you wish to use.
@@ -20,7 +20,7 @@ FOXMetatable = {
 ---FOX's API module functions and resources
 ---@class FOXAPI
 FOXAPI = setmetatable({}, FOXMetatable)
-local _ver = { "1.1.1", 6 }
+local _ver = { "1.1.2", 7 }
 
 --#REGION ˚♡ Events ♡˚
 
@@ -241,40 +241,40 @@ end
 --#REGION contains()
 
 ---`FOXAPI` Returns whether the pattern matches the table. Uses json.
----@param table table
+---@param tbl table
 ---@param pattern string
 ---@return boolean
 ---@nodiscard
-function table.contains(table, pattern)
+function table.contains(tbl, pattern)
   assert(type(pattern) == "string", "The value must be a string!", 2)
-  return toJson(table):find(pattern) and true or false
+  return toJson(tbl):find(pattern) and true or false
 end
 
 --#ENDREGION
 --#REGION match()
 
 ---`FOXAPI` Return the first match in the table. Uses json.
----@param table table
+---@param tbl table
 ---@param pattern string
 ---@return string? match
 ---@nodiscard
-function table.match(table, pattern)
+function table.match(tbl, pattern)
   assert(type(pattern) == "string", "The pattern must be a string!", 2)
-  return toJson(table):match(pattern)
+  return toJson(tbl):match(pattern)
 end
 
 --#ENDREGION
 --#REGION gmatch()
 
 ---`FOXAPI` Match all the values that match the given value in the table. Uses json.
----@param table table
+---@param tbl table
 ---@param pattern string
 ---@return table matches
 ---@nodiscard
-function table.gmatch(table, pattern)
+function table.gmatch(tbl, pattern)
   assert(type(pattern) == "string", "The pattern must be a string!", 2)
   local matches = {}
-  for match in toJson(table):gmatch(pattern) do
+  for match in toJson(tbl):gmatch(pattern) do
     table.insert(matches, match)
   end
   return matches
@@ -284,12 +284,12 @@ end
 --#REGION invert()
 
 ---`FOXAPI` Returns an inverted table with all keys becoming values and values becoming keys.
----@param table table
+---@param tbl table
 ---@return table
 ---@nodiscard
-function table.invert(table)
+function table.invert(tbl)
   local _table = {}
-  for key, value in pairs(table) do
+  for key, value in pairs(tbl) do
     _table[value] = key
   end
   return _table
