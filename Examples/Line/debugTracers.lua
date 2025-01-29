@@ -9,7 +9,7 @@ if host:isHost() then
   if not enable then return end
   local tracked = {}
   function events.entity_init()
-    function events.pre_render(delta)
+    function events.world_render(delta)
       local players = world.getPlayers()
       -- Create new tracer if none is made for this player
       for k, v in pairs(players) do

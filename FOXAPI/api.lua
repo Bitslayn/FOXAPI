@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API v1.1.0
+FOX's API v1.1.1
 
 An API containing several modules, each with their own functionality.
 Modules can be added or removed depending on what features you wish to use.
@@ -20,7 +20,7 @@ FOXMetatable = {
 ---FOX's API module functions and resources
 ---@class FOXAPI
 FOXAPI = setmetatable({}, FOXMetatable)
-local _ver = { "1.1.0", 5 }
+local _ver = { "1.1.1", 6 }
 
 --#REGION ˚♡ Events ♡˚
 
@@ -150,12 +150,11 @@ local _vectors = figuraMetatables.VectorsAPI.__index
 ---is 4 digits long, it is treated as a short hex string. (`#ABCD` == `#AABBCCDD`)<br>
 ---Returns `⟨0, 0, 0, 1⟩` if the hex string is invalid.<br>
 ---Some special strings are also accepted in place of a hex string.
----@param hex string
+---@param hex string?
 ---@return Vector4
 ---@nodiscard
 function _vectors.hexToRGBA(hex)
-  local _type = type(hex)
-  assert(_type == "string", "Expected string, got " .. _type, 2)
+  hex = hex or ""
   return hex:find("#") and vectors.hexToRGB(hex):augmented(#hex > 5 and
     tonumber(hex:match("#?%x%x%x%x%x%x(%x%x)") or "ff", 16) / 255 or
     tonumber(hex:match("#?%x%x%x(%x)") or "f", 16) / 15
@@ -169,10 +168,11 @@ end
 
 ---`FOXAPI` Converts the given integer into a color vector.<br>
 ---If `int` is `nil`, it will default to `0`.<br>
----@param int integer
+---@param int integer?
+---@return Vector4
+---@nodiscard
 function _vectors.intToRGBA(int)
-  local _type = type(int)
-  assert(_type == "number", "Expected integer, got " .. _type, 2)
+  int = int or 0
   return vec(
     math.floor(int / 0x10000) % 0x100 / 255,
     math.floor(int / 0x100) % 0x100 / 255,
@@ -188,12 +188,13 @@ end
 ---If `h`, `s`, `v`, or `a` are `nil`, they will default to `0`.
 ---@overload fun(hsva?: Vector4): Vector4
 ---@overload fun(h?: number, s?: number, v?: number, a?: number): Vector4
+---@nodiscard
 function _vectors.hsvToRGBA(...)
   local args = { ... }
   local _type = type(args[1])
-  assert(_type == "Vector4" or _type == "number", "Expected Vector4 or number, got " .. _type, 2)
-  return _type == "Vector4" and vectors.hsvToRGB(args[1].xyz):augmented(args[1].w) or
-      vectors.hsvToRGB(args[1], args[2], args[3]):augmented(args[4])
+  return _type == "Vector4" and
+      vectors.hsvToRGB(args[1].xyz or vec(0, 0, 0)):augmented(args[1].w or 1) or
+      vectors.hsvToRGB(args[1] or 0, args[2] or 0, args[3] or 0):augmented(args[4] or 1)
 end
 
 --#ENDREGION
@@ -210,7 +211,7 @@ local _config = figuraMetatables.ConfigAPI.__index
 ---If `value` is `nil`, the key is removed from the config.
 ---@param file string
 ---@param name string
----@param value any
+---@param value? any
 function _config:saveTo(file, name, value)
   local prevConfig = config:getName()
   config:setName(file):save(name, value)
@@ -240,40 +241,40 @@ end
 --#REGION contains()
 
 ---`FOXAPI` Returns whether the pattern matches the table. Uses json.
----@param list table
+---@param table table
 ---@param pattern string
 ---@return boolean
 ---@nodiscard
-function table.contains(list, pattern)
+function table.contains(table, pattern)
   assert(type(pattern) == "string", "The value must be a string!", 2)
-  return toJson(list):find(pattern) and true or false
+  return toJson(table):find(pattern) and true or false
 end
 
 --#ENDREGION
 --#REGION match()
 
 ---`FOXAPI` Return the first match in the table. Uses json.
----@param list table
+---@param table table
 ---@param pattern string
 ---@return string? match
 ---@nodiscard
-function table.match(list, pattern)
+function table.match(table, pattern)
   assert(type(pattern) == "string", "The pattern must be a string!", 2)
-  return toJson(list):match(pattern)
+  return toJson(table):match(pattern)
 end
 
 --#ENDREGION
 --#REGION gmatch()
 
 ---`FOXAPI` Match all the values that match the given value in the table. Uses json.
----@param list table
+---@param table table
 ---@param pattern string
 ---@return table matches
 ---@nodiscard
-function table.gmatch(list, pattern)
+function table.gmatch(table, pattern)
   assert(type(pattern) == "string", "The pattern must be a string!", 2)
   local matches = {}
-  for match in toJson(list):gmatch(pattern) do
+  for match in toJson(table):gmatch(pattern) do
     table.insert(matches, match)
   end
   return matches
@@ -283,6 +284,7 @@ end
 --#REGION invert()
 
 ---`FOXAPI` Returns an inverted table with all keys becoming values and values becoming keys.
+---@param table table
 ---@return table
 ---@nodiscard
 function table.invert(table)
