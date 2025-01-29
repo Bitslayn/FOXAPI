@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.10
+FOX's Patpat Module v1.0.11
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -18,7 +18,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.0", 5 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.10", 11 },
+  _ver = { "1.0.11", 12 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -68,16 +68,15 @@ events:new("entity_pat")
 events:new("skull_pat")
 events:new("patting")
 
-avatar:store("patpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
-avatar:store("foxpat.actAsInteractable",
-  FOXAPI.foxpat.config.actAsInteractable or
-  (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false))
+local lastBoundingBox, lastActAsInteractable
 
 function events.tick()
-  if player:getVariable("foxpat.boundingBox") ~= FOXAPI.foxpat.config.boundingBox then
-    avatar:store("foxpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
+  if lastBoundingBox ~= FOXAPI.foxpat.config.boundingBox then
+    lastBoundingBox = FOXAPI.foxpat.config.boundingBox
+    avatar:store("patpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
   end
-  if player:getVariable("foxpat.actAsInteractable") ~= FOXAPI.foxpat.config.actAsInteractable or (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false) then
+  if lastActAsInteractable ~= FOXAPI.foxpat.config.actAsInteractable or (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false) then
+    lastActAsInteractable = FOXAPI.foxpat.config.actAsInteractable
     avatar:store("foxpat.actAsInteractable",
       FOXAPI.foxpat.config.actAsInteractable or
       (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false))
