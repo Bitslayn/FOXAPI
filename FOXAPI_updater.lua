@@ -13,7 +13,7 @@ Can be installed to your data folder.
 --#REGION ˚♡ Externally hook into FOXAPI ♡˚
 
 if not host:isHost() then return end   -- Remove this line if this script is in your data folder
-require("Scripts.Libs.FOX.FOXAPI.api") -- MAKE SURE THIS REQUIRES THE RIGHT PATH
+require("FOXAPI.api") -- MAKE SURE THIS REQUIRES THE RIGHT PATH
 
 local variable = player:getVariable("FOXAPI")
 local ver, mod = type(variable._ver) == "table" and variable._ver, type(variable._mod) == "table" and variable._mod
@@ -106,7 +106,6 @@ end
 
 -- Check for updates
 local function checkUpdates(mods)
-  if type(mods) ~= "table" then return end
   for _, _mod in pairs(mods) do
     if (_mod.isAPI and ver[2] or mod[_mod.name]._ver[2]) < _mod.protocol and ignoredUpdates[_mod.name] ~= _mod.protocol then
       updateCount = updateCount + 1
@@ -127,7 +126,7 @@ updateProxy:newItem("FOXAPI.updateProxy.skull")
 local function awaitAvatarVariables()
   local vars = world.avatarVars()["55648b2f-a2f5-4a21-8e4f-fe904239f8b6"]
   if not vars then return end
-  checkUpdates(vars["FOXAPI.versions"])
+  pcall(checkUpdates, vars["FOXAPI.versions"])
   updateProxy:remove()
   events.tick:remove(awaitAvatarVariables)
 end
