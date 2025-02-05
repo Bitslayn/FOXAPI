@@ -106,7 +106,7 @@ end
 
 -- Check for updates
 local function checkUpdates(mods)
-  assert(type(mods) == "table", lang.updaterError, 2)
+  if not mods then return end
   for _, _mod in pairs(mods) do
     if (_mod.isAPI and ver[2] or mod[_mod.name]._ver[2]) < _mod.protocol and ignoredUpdates[_mod.name] ~= _mod.protocol then
       updateCount = updateCount + 1
