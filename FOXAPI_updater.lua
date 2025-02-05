@@ -16,7 +16,7 @@ if not host:isHost() then return end   -- Remove this line if this script is in 
 require("Scripts.Libs.FOX.FOXAPI.api") -- MAKE SURE THIS REQUIRES THE RIGHT PATH
 
 local variable = player:getVariable("FOXAPI")
-local ver, mod = variable._ver, variable._mod
+local ver, mod = type(variable._ver) == "table" and variable._ver, type(variable._mod) == "table" and variable._mod
 if not (ver and mod) then return end
 
 --#ENDREGION
@@ -106,7 +106,7 @@ end
 
 -- Check for updates
 local function checkUpdates(mods)
-  if not mods then return end
+  if type(mods) ~= "table" then return end
   for _, _mod in pairs(mods) do
     if (_mod.isAPI and ver[2] or mod[_mod.name]._ver[2]) < _mod.protocol and ignoredUpdates[_mod.name] ~= _mod.protocol then
       updateCount = updateCount + 1
