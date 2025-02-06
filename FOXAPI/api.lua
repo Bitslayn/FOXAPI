@@ -3,7 +3,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's API v1.1.2
+FOX's API v1.1.3
 
 An API containing several modules, each with their own functionality.
 Modules can be added or removed depending on what features you wish to use.
@@ -20,7 +20,8 @@ FOXMetatable = {
 ---FOX's API module functions and resources
 ---@class FOXAPI
 FOXAPI = setmetatable({}, FOXMetatable)
-local _ver = { "1.1.2", 7 }
+local _ver = { "1.1.3", 8 }
+---@diagnostic disable: param-type-mismatch
 
 --#REGION ˚♡ Events ♡˚
 
@@ -195,6 +196,36 @@ function _vectors.hsvToRGBA(...)
   return _type == "Vector4" and
       vectors.hsvToRGB(args[1].xyz or vec(0, 0, 0)):augmented(args[1].w or 1) or
       vectors.hsvToRGB(args[1] or 0, args[2] or 0, args[3] or 0):augmented(args[4] or 1)
+end
+
+--#ENDREGION
+--#REGION random()
+
+---`FOXAPI` Works the same as math.random, except you have to insert the length of the output vector as a number `l`, and can use vectors for `m` and `n`.
+---* `vectors.random(l)`: Returns a vector of `l` length, of floats in the range [0,1).
+---* `vectors.random(l, n)`: Returns a vector of `l` length, of integers in the range [1, n].
+---* `vectors.random(l, m, n)`: Returns a vector of `l` lenght, of integers in the range [m, n].
+---@param l? number
+---@param m? number|Vector
+---@param n? number|Vector
+---@return Vector
+---@nodiscard
+function _vectors.random(l, m, n)
+  l = math.clamp(l or 3, 2, 4)
+  local vec = vectors["vec" .. l]()
+  m = type(m):find("Vector") and m or (m and vec + m)
+  n = type(n):find("Vector") and n or (n and vec + n)
+
+  for i = 1, l do
+    if m and n then
+      vec[i] = math.random(m[i], n[i])
+    elseif m then
+      vec[i] = math.random(m[i])
+    else
+      vec[i] = math.random()
+    end
+  end
+  return vec
 end
 
 --#ENDREGION
