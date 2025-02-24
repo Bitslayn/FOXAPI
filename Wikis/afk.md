@@ -48,6 +48,49 @@ function events.tick()
 end
 ```
 
+## Play a honk shoo sound randomly while you're AFK
+
+```lua
+require("FOXAPI.api") -- Require FOXAPI
+
+local foxafk = FOXAPI.afk -- Access FoxAFK module globals
+
+local timer = 0
+local timerMin, timerMax = 5 * 20, 25 * 20 -- The soonest or latest to play the sound
+local timerEnd = math.random(timerMin, timerMax)
+function events.tick()
+  if foxafk.isAFK then -- While you're AFK
+    timer = timer + 1
+    if timer >= timerEnd then
+      if player:isLoaded() then -- You're getting the player's pos, you should check if the player is loaded
+        sounds:playSound("minecraft:entity.fox.sleep", player:getPos())
+      end
+
+      timer = 0 -- Reset the timer
+      timerEnd = math.random(timerMin, timerMax)
+    end
+  end
+end
+```
+
+## Play an animation when you start being AFK and another when you stop being AFK
+
+```lua
+require("FOXAPI.api") -- Require FOXAPI
+
+local foxafk = FOXAPI.afk -- Access FoxAFK module globals
+
+local wasAFK
+function events.tick()
+  if wasAFK ~= foxafk.isAFK then
+    animations.player.afkAnimation:setPlaying(foxafk.isAFK) -- Animation to play when you become AFK
+    animations.player.unafkAnimation:setPlaying(not foxafk.isAFK) -- Animation to play when you stop being AFK
+
+    wasAFK = foxafk.isAFK
+  end
+end
+```
+
 ---
 
 # Configuration
@@ -117,6 +160,8 @@ How the AFK timer should be formatted when the player has been AFK for **less th
 | Type | Default |
 | - | - |
 | string | `"%d:%02d:%02d"` (0:00) |
+
+---
 
 # Variables
 These variables should only be read, not written to. Like configs, FOXAPI should be required to read them.
