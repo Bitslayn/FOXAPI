@@ -66,7 +66,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.1.0", 12 },
+  _ver = { "1.1.1", 13 },
 }
 if not FOXAPI then
   __race = { _s_gsub(_t_concat({ ... }, "/"), "/", "."), _module }
@@ -411,7 +411,7 @@ local function foxpatBlockPing(c)
     local blockData = block:getEntityData()
     local blockMatch = _s_match(block.id, ":(.-)_")
     local soundName
-    if blockData.SpawnData or blockData.spawn_data then
+    if blockData and (blockData.SpawnData or blockData.spawn_data) then
       -- Find sound for mob spawners
       if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) then
         soundName = _s_format("%s:entity.%s.ambient",
