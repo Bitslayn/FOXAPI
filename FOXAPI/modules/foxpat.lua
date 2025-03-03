@@ -4,45 +4,36 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.0.11
+FOX's Patpat Module v1.1.0
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
 Forked from Auria's patpat https://github.com/lua-gods/figuraLibraries/blob/main/patpat/patpat.lua
 
+Github Docs: https://github.com/Bitslayn/FOXAPI/wiki/Foxpat
+
 --]]
 
-local apiPath, moduleName = ...
-assert(apiPath:find("FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
-local _module = {
-  _api = { "FOXAPI", "1.1.0", 5 },
-  _name = "FOX's Patpat Module",
-  _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.0.11", 12 },
-}
-if not FOXAPI then
-  __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
-  require(apiPath:match("(.*)modules") .. "api")
-end
+-- DO NOT insert your own code here. This is a library module/API, not a script.
 
--- Looking for configs? They've been moved to Examples\Foxpat\foxpatConfig.lua in github
 --#REGION ˚♡ Whitelists/blacklists ♡˚
 
-local lists = {
+-- Change these values to your liking; just don't delete the table. (There's no way to make these external configs as they are pre-processed)
 
-  -- List of blocks that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
-  block = {
+local lists = {
+  block = { -- List of blocks that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
     whitelist = {
       "head",
       "skull",
       "minecraft:carved_pumpkin",
       "minecraft:jack_o_lantern",
+      "minecraft:observer",
+      "minecraft:spawner",
+      "minecraft:trial_spawner",
     },
     blacklist = { "minecraft:piston_head" },
   },
-
-  -- List of entites that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
-  entity = {
+  entity = { -- List of entites that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
     whitelist = { "*" },
     blacklist = {
       "boat",
@@ -57,12 +48,39 @@ local lists = {
 }
 --#ENDREGION
 
--- Do not touch anything beyond this point unless you know what you are doing!
+-- Do not touch anything below this line unless you know what you are doing! Chances are, what you are trying to configure already can be configured externally.
+
+local _c_registry, _c_uuid = client.getRegistry, client.intUUIDToString
+local _m_clamp, _m_floor, _m_min, _m_random = math.clamp, math.floor, math.min, math.random
+local _s_byte, _s_char, _s_find, _s_format, _s_gsub, _s_match, _s_sub =
+    string.byte, string.char, string.find, string.format, string.gsub, string.match, string.sub
+local _t_concat, _t_contains, _t_gmatch, _t_invert, _t_insert, _t_match, _t_unpack =
+    table.concat, table.contains, table.gmatch, table.invert, table.insert, table.match,
+    table.unpack
+local _v_rand = vectors.random
+local _w_block, _w_entity, _w_vars = world.getBlockState, world.getEntity, world.avatarVars
+
+local path = ...
+assert(_s_find(path, "FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
+local _module = {
+  _api = { "FOXAPI", "1.1.3", 8 },
+  _name = "FOX's Patpat Module",
+  _desc = "Lets you pat other players, entities, and skulls.",
+  _ver = { "1.1.0", 12 },
+}
+if not FOXAPI then
+  __race = { _s_gsub(_t_concat({ ... }, "/"), "/", "."), _module }
+  require(_s_match(path, "(.*)modules") .. "api")
+end
 
 --#REGION ˚♡ Init vars and functions ♡˚
 
+local isHost = host:isHost()
+
+---@class foxpat
 FOXAPI.foxpat = {}
 FOXAPI.foxpat.config = {}
+local cfg = FOXAPI.foxpat.config
 
 events:new("entity_pat")
 events:new("skull_pat")
@@ -71,75 +89,80 @@ events:new("patting")
 local lastBoundingBox, lastActAsInteractable
 
 function events.tick()
-  if lastBoundingBox ~= FOXAPI.foxpat.config.boundingBox then
-    lastBoundingBox = FOXAPI.foxpat.config.boundingBox
-    avatar:store("patpat.boundingBox", FOXAPI.foxpat.config.boundingBox)
+  if lastBoundingBox ~= cfg.boundingBox then
+    lastBoundingBox = cfg.boundingBox
+    avatar:store("patpat.boundingBox", cfg.boundingBox)
   end
-  if lastActAsInteractable ~= FOXAPI.foxpat.config.actAsInteractable or (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false) then
-    lastActAsInteractable = FOXAPI.foxpat.config.actAsInteractable
-    avatar:store("foxpat.actAsInteractable",
-      FOXAPI.foxpat.config.actAsInteractable or
-      (type(FOXAPI.foxpat.config.actAsInteractable) == "nil" and false))
+  if lastActAsInteractable ~= cfg.actAsInteractable then
+    lastActAsInteractable = cfg.actAsInteractable
+    avatar:store("foxpat.actAsInteractable", cfg.actAsInteractable)
   end
 end
 
-local noteBlockImitation = table.gmatch(client.getRegistry("sound_event"),
-  '"([%w_:%-%.]-' .. "note_block.imitate" .. '[%w_:%-%.]-)"')
+local matchPattern = '"([%%w_:%%-%%.]-%s[%%w_:%%-%%.]-)"'
+local noteBlockImitation = _t_gmatch(_c_registry("sound_event"),
+  _s_format(matchPattern, "note_block.imitate"))
 
 local cache = {
-  uuidObfu = {},     -- [uuid] = obfuscation
-  uuidObfuMap = {},  -- [obfuscation] = uuid
-  coordObfu = {},    -- [coord] = obfuscation
-  coordObfuMap = {}, -- [obfuscation] = coord
+  uuidHash = {},     -- [uuid] = hash
+  uuidHashMap = {},  -- [hash] = uuid
+  coordHash = {},    -- [coord] = hash
+  coordHashMap = {}, -- [hash] = coord
 }
 
 local function packUUID(uuid)
   -- Check if this UUID has been cached
-  if not cache.uuidObfu[uuid] then
+  if not cache.uuidHash[uuid] then
     -- Convert small portion of UUID into a string that can be pinged
     local packedUUID = ""
-    local uuidShort = uuid:match("%-(%w*)$")
+    local uuidShort = _s_match(uuid, "%-(%w*)$")
     for i = 1, 6, 2 do
-      packedUUID = packedUUID .. string.char(tonumber(uuidShort:sub(i, i + 1), 16))
+      packedUUID = packedUUID .. _s_char(tonumber(_s_sub(uuidShort, i, i + 1), 16))
     end
     -- Store caches
-    cache.uuidObfu[uuid] = packedUUID
-    cache.uuidObfuMap[packedUUID] = uuid
+    cache.uuidHash[uuid] = packedUUID
+    cache.uuidHashMap[packedUUID] = uuid
     return packedUUID
   else
-    return cache.uuidObfu[uuid] -- Skip packing and read from cache
+    return cache.uuidHash[uuid] -- Skip packing and read from cache
   end
+end
+function events.entity_init()
+  packUUID(player:getUUID()) -- Append the current player to cache so self patting works
 end
 
 local function unpackUUID(packedUUID)
   -- Check if this UUID has been cached
-  if not cache.uuidObfuMap[packedUUID] then
+  if not cache.uuidHashMap[packedUUID] then
     -- Convert UUID from string into readable UUID
     local uuidShort = ""
     for i = 1, #packedUUID do
-      uuidShort = uuidShort .. string.format("%02x", string.byte(packedUUID:sub(i, i)))
+      uuidShort = uuidShort .. _s_format("%02x", _s_byte(packedUUID:sub(i, i)))
     end
     -- Get UUID from target entity
-    local target = player:getTargetedEntity()
+    local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
+        :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos)
+    local target = raycast:entity(myPos, myPos + player:getLookDir():mul(5, 5, 5),
+      function(entity) return entity ~= player end)
     if not target then return end -- Make sure there is an entity to get UUID from
     local targetUUID = target:getUUID()
     -- Check target entity to see if UUID matches
     if not targetUUID:find(uuidShort) then return end
     local uuid = target:getUUID()
     -- Store caches
-    cache.uuidObfu[uuid] = packedUUID
-    cache.uuidObfuMap[packedUUID] = uuid
+    cache.uuidHash[uuid] = packedUUID
+    cache.uuidHashMap[packedUUID] = uuid
     return uuid
   else
-    return cache.uuidObfuMap[packedUUID] -- Skip unpacking and read from cache
+    return cache.uuidHashMap[packedUUID] -- Skip unpacking and read from cache
   end
 end
 
 local function packCoord(coord)
-  local entry = table.concat({ coord:unpack() }, ",")
+  local entry = _t_concat({ coord:unpack() }, ",")
 
   -- Check if this coordinate has been cached
-  if not cache.coordObfu[entry] then
+  if not cache.coordHash[entry] then
     -- Convert coordinate to position relative to chunk cube with combined x and z
     local blockPosXZ = coord.xz:reduce(16, 16):mul(1, 16)
     local combinedXZ = blockPosXZ.x + blockPosXZ.y
@@ -147,14 +170,14 @@ local function packCoord(coord)
     -- Convert vec2 coordinate to a string that can be pinged
     local packedCoord = ""
     for i = 1, 2 do
-      packedCoord = packedCoord .. string.char(finalPos[i])
+      packedCoord = packedCoord .. _s_char(finalPos[i])
     end
     -- Store caches
-    cache.coordObfu[entry] = packedCoord
-    cache.coordObfuMap[packedCoord] = coord
+    cache.coordHash[entry] = packedCoord
+    cache.coordHashMap[packedCoord] = coord
     return packedCoord
   else
-    return cache.coordObfu[entry] -- Skip packing and read from cache
+    return cache.coordHash[entry] -- Skip packing and read from cache
   end
 end
 
@@ -165,36 +188,35 @@ local function unpackCoord(packedCoord)
   -- Clear caches if the chunk of the patted block is different
   if cache.lastChunk ~= chunk then
     cache.lastChunk = chunk
-    cache.coordObfu, cache.coordObfuMap = {}, {}
+    cache.coordHash, cache.coordHashMap = {}, {}
   end
 
   -- Check if this coordinate has been cached
-  if not cache.coordObfuMap[packedCoord] then
+  if not cache.coordHashMap[packedCoord] then
     -- Convert string into vec2 coordinate
     local coord = {}
     for i = 1, #packedCoord do
-      coord[i] = string.byte(packedCoord:sub(i, i))
+      coord[i] = _s_byte(_s_sub(packedCoord, i, i))
     end
     -- Convert vec2 coord into vec3
     local finalPos = vec(
       (coord[1] % 16) + chunk.x,
       coord[2] + chunk.y,
-      (math.floor(coord[1] / 16)) + chunk.z
+      (_m_floor(coord[1] / 16)) + chunk.z
     )
     -- Store caches
-    cache.coordObfu[table.concat({ finalPos:unpack() }, ",")] = packedCoord
-    cache.coordObfuMap[packedCoord] = finalPos
+    cache.coordHash[_t_concat({ finalPos:unpack() }, ",")] = packedCoord
+    cache.coordHashMap[packedCoord] = finalPos
     return finalPos
   else
-    return cache.coordObfuMap[packedCoord] -- Skip unpacking and read from cache
+    return cache.coordHashMap[packedCoord] -- Skip unpacking and read from cache
   end
 end
 
 local function getAvatarVarsFromBlock(block)
-  if not block.id:match("head") then return {} end
-  return world.avatarVars()[client.intUUIDToString(table.unpack(
-    block:getEntityData().SkullOwner and block:getEntityData().SkullOwner.Id or {}
-  ))] or {}
+  if not _s_match(block.id, "head") then return {} end
+  local SkullOwner = block:getEntityData().SkullOwner
+  return _w_vars()[_c_uuid(_t_unpack(SkullOwner and SkullOwner.Id or {}))] or {}
 end
 
 
@@ -204,13 +226,15 @@ end
 --#REGION ˚♡ Handle being patted ♡˚
 
 local myPatters = { entity = {}, skull = {} }
+local entityPatterCount = 0
 
 function events.tick()
   -- Entity pat timers
   for uuid, time in pairs(myPatters.entity) do
     if time <= 0 then
-      events:call("entity_pat", world.getEntity(uuid), 1)
+      entityPatterCount = entityPatterCount - 1
       myPatters.entity[uuid] = nil
+      events:call("entity_pat", _w_entity(uuid), "UNPAT")
     else
       myPatters.entity[uuid] = time - 1
     end
@@ -221,8 +245,8 @@ function events.tick()
     local pos = headPatters.pos
     for uuid, time in pairs(headPatters.list) do
       if time <= 0 then
-        events:call("skull_pat", world.getEntity(uuid), 1, pos)
         headPatters.list[uuid] = nil
+        events:call("skull_pat", _w_entity(uuid), "UNPAT", pos)
       else
         headPatters.list[uuid] = time - 1
         patted = true
@@ -235,17 +259,20 @@ function events.tick()
 end
 
 avatar:store("petpet", function(uuid, time)
-  time = math.clamp(time or 0, FOXAPI.foxpat.config.holdFor or 10, 100)
-  local entity = world.getEntity(uuid)
+  time = _m_clamp(time or 0, cfg.holdFor or 10, 100)
+  local entity = _w_entity(uuid)
   local prev = myPatters.entity[uuid]
+  if not prev then
+    entityPatterCount = entityPatterCount + 1
+  end
   myPatters.entity[uuid] = time
-  return events:call("entity_pat", entity, prev and 2 or 0)
+  return events:call("entity_pat", entity, prev and "WHILE_PAT" or "PAT")
 end)
 
 avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
   if not x or not y or not z then return end
-  time = math.min(time or (FOXAPI.foxpat.config.holdFor or 10), 100)
-  local pos = vec(math.floor(x), y, math.floor(z))
+  time = _m_min(time or (cfg.holdFor or 10), 100)
+  local pos = vec(_m_floor(x), y, _m_floor(z))
   local i = tostring(pos)
   local patters = myPatters.skull[i]
   if not patters then
@@ -253,17 +280,17 @@ avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
     myPatters.skull[i] = { list = patters, pos = pos }
   end
 
-  local entity = world.getEntity(uuid)
+  local entity = _w_entity(uuid)
   local prev = patters[uuid]
   patters[uuid] = time
-  return events:call("skull_pat", entity, prev and 2 or 0, pos)
+  return events:call("skull_pat", entity, prev and "WHILE_PAT" or "PAT", pos)
 end)
 
 --#ENDREGION
 --#REGION ˚♡ Handle patting others ♡˚
 
 local function parseReturns(retTbl)
-  return { table.contains(retTbl, "%[true"), table.contains(retTbl, "true%]") }
+  return { _t_contains(retTbl, "%[true"), _t_contains(retTbl, "true%]") }
 end
 
 local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
@@ -283,28 +310,28 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
 
   -- Play pat animation and swinging
   if not noPats then
-    if FOXAPI.foxpat.config.swingArm or (type(FOXAPI.foxpat.config.swingArm) == "nil" and true) then
+    if avatarVars["foxpat.actAsInteractable"] then
       host:swingArm()
-    end
-    if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
-      FOXAPI.foxpat.config.patAnimation:play()
-    elseif type(FOXAPI.foxpat.config.patAnimation) == "table" then
-      for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
-        if type(anim) == "Animation" then
-          anim:play()
+    else
+      if cfg.swingArm or (type(cfg.swingArm) == "nil" and true) then
+        host:swingArm()
+      end
+      if type(cfg.patAnimation) == "Animation" then
+        cfg.patAnimation:play()
+      elseif type(cfg.patAnimation) == "table" then
+        for _, anim in pairs(cfg.patAnimation) do
+          if type(anim) == "Animation" then
+            anim:play()
+          end
         end
       end
     end
   end
 
-  -- Emit particles
-  if not noHearts and not avatarVars["patpat.noHearts"] then -- Keep old compatibility, particles:isPresent(FOXAPI.foxpat.config.patParticle) not working on 1.21.x until RC7
-    pos = pos - boundingBox.x_z * 0.5 + vec(
-      math.random(),
-      math.random(),
-      math.random()
-    ) * boundingBox
-    particles[FOXAPI.foxpat.config.patParticle or "minecraft:heart"]:pos(pos):scale(1):spawn()
+  -- Emit particles (This module is written in a way to allow you to modify your own particles, please do not modify code directly)
+  if not noHearts and not avatarVars["patpat.noHearts"] then
+    pos = pos - boundingBox.x_z * 0.5 + _v_rand() * boundingBox
+    particles[particles:isPresent(cfg.patParticle) and cfg.patParticle or "minecraft:heart"]:pos(pos):scale(1):spawn()
   end
 end
 
@@ -316,10 +343,10 @@ function events.tick()
   if patTimer == 0 then return end
   patTimer = patTimer - 1
   if patTimer == 0 then
-    if type(FOXAPI.foxpat.config.patAnimation) == "Animation" then
-      FOXAPI.foxpat.config.patAnimation:stop()
-    elseif type(FOXAPI.foxpat.config.patAnimation) == "table" then
-      for _, anim in pairs(FOXAPI.foxpat.config.patAnimation) do
+    if type(cfg.patAnimation) == "Animation" then
+      cfg.patAnimation:stop()
+    elseif type(cfg.patAnimation) == "table" then
+      for _, anim in pairs(cfg.patAnimation) do
         if type(anim) == "Animation" then
           anim:stop()
         end
@@ -334,17 +361,17 @@ local function foxpatEntityPing(u)
   if not player:isLoaded() then return end
   local unpackedUUID = unpackUUID(u)
   if not unpackedUUID then return end
-  local entity = world.getEntity(unpackedUUID)
+  local entity = _w_entity(unpackedUUID)
   if not entity then return end
 
   -- Play sounds for entities
-  if (FOXAPI.foxpat.config.playMobSounds or (type(FOXAPI.foxpat.config.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
-    local soundName = string.format("%s:entity.%s.ambient",
-      entity:getType():match("^(.-):(.-)$"))
+  if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
+    local soundName = _s_format("%s:entity.%s.ambient", _s_match(entity:getType(), "^(.-):(.-)$"))
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(entity:getPos()):setPitch((FOXAPI.foxpat.config.mobSoundPitch or 1) *
-        ((entity:getNbt().Age or -(entity:getNbt().IsBaby or -1)) >= 0 and 1 or 1.5) +
-        (math.random() - 0.5) * (FOXAPI.foxpat.config.mobSoundRange or 0.25)):play()
+      local nbt = entity:getNbt()
+      sounds[soundName]:setPos(entity:getPos()):setPitch((cfg.mobSoundPitch or 1) *
+        ((nbt.Age or -(nbt.IsBaby or -1)) >= 0 and 1 or 1.5) +
+        (_m_random() - 0.5) * (cfg.mobSoundRange or 0.25)):play()
     end
   end
 
@@ -358,13 +385,13 @@ local function foxpatEntityPing(u)
   end
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet"], myUuid, FOXAPI.foxpat.config.holdFor or 10)
+  local _, ret = pcall(avatarVars["petpet"], myUuid, cfg.holdFor or 10)
   patResponse(avatarVars, ret, entity, nil, boundingBox, pos)
-  patTimer = FOXAPI.foxpat.config.holdFor or 10
+  patTimer = cfg.holdFor or 10
 end
 
 function pings.foxpatEntity(...)
-  if host:isHost() then return end
+  if isHost then return end
   foxpatEntityPing(...)
 end
 
@@ -376,23 +403,31 @@ local function foxpatBlockPing(c)
 
   local blockPos = unpackCoord(c).xyz
 
-  local block = world.getBlockState(blockPos)
+  local block = _w_block(blockPos)
   if block:isAir() or block.id == "minecraft:water" or block.id == "minecraft:lava" then return end
 
-  -- Play sounds for skulls
-  if FOXAPI.foxpat.config.playNoteSounds or (type(FOXAPI.foxpat.config.playNoteSounds) == "nil" and true) then
+  -- Play sounds for blocks
+  if cfg.playNoteSounds or (type(cfg.playNoteSounds) == "nil" and true) then
     local blockData = block:getEntityData()
-    local blockMatch = block.id:match(":(.-)_")
+    local blockMatch = _s_match(block.id, ":(.-)_")
     local soundName
-    if blockMatch then
+    if blockData.SpawnData or blockData.spawn_data then
+      -- Find sound for mob spawners
+      if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) then
+        soundName = _s_format("%s:entity.%s.ambient",
+          _s_match((blockData.SpawnData or blockData.spawn_data).entity.id, "^(.-):(.-)$"))
+      end
+    elseif blockMatch then
+      -- Find sound for player skull
       soundName = blockData and blockData.note_block_sound or
-          table.match(noteBlockImitation, '"([%w_:%-%.]-' .. blockMatch .. '[%w_:%-%.]-)"')
+          _t_match(noteBlockImitation, _s_format(matchPattern, blockMatch))
     end
     if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(blockPos):setPitch((FOXAPI.foxpat.config.noteSoundPitch or 1) +
-        (math.random() - 0.5) * (FOXAPI.foxpat.config.noteSoundRange or 0.25)):play()
+      sounds[soundName]:setPos(blockPos):setPitch((cfg.noteSoundPitch or 1) +
+        (_m_random() - 0.5) * (cfg.noteSoundRange or 0.25)):play()
     end
   end
+
 
   -- Get bounding box
   local avatarVars = getAvatarVarsFromBlock(block)
@@ -401,14 +436,14 @@ local function foxpatBlockPing(c)
   local boundingBox = blockShape[2]:sub(blockShape[1]):add(0.3, 0, 0.3)
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, FOXAPI.foxpat.config.holdFor or 10,
+  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, cfg.holdFor or 10,
     blockPos:unpack())
   patResponse(avatarVars, ret, nil, block, boundingBox, blockPos:add(0.5, 0, 0.5))
-  patTimer = FOXAPI.foxpat.config.holdFor or 10
+  patTimer = cfg.holdFor or 10
 end
 
 function pings.foxpatBlock(...)
-  if host:isHost() then return end
+  if isHost then return end
   foxpatBlockPing(...)
 end
 
@@ -417,208 +452,193 @@ end
 --#ENDREGION
 
 --#ENDREGION
+--#REGION ˚♡ PlayerAPI ♡˚
+
+---@class Player
+local PlayerAPI = figuraMetatables.PlayerAPI.__index
+
+---`FOXAPI` Returns if the player is currently being patted.
+function PlayerAPI:isPatted()
+  return entityPatterCount > 0
+end
+
+--#ENDREGION
 --#REGION ˚♡ Host ♡˚
 
-if host:isHost() then
-  --#REGION ˚♡ Unpack whitelists/blacklists ♡˚
+if not isHost then return _module end
 
-  local function processRegistry(registry, config)
-    local function processList(list)
-      for i = 1, #list do
-        local str = list[i]
-        if not table.contains(registry, string.format('"%s"', str)) then
-          local list_index = 1
-          local matchTbl = table.gmatch(registry, '"([%w_:%-%.]-' .. str .. '[%w_:%-%.]-)"')
-          for j = 1, #matchTbl do
-            table.insert(list, matchTbl[j])
-            list_index = list_index + 1
-          end
-          list[i] = nil
-        end
-      end
-    end
+--#REGION ˚♡ Unpack whitelists/blacklists ♡˚
 
-    processList(config.whitelist)
-    processList(config.blacklist)
-
-    config.whitelist = table.invert(config.whitelist)
-    config.blacklist = table.invert(config.blacklist)
-  end
-
-  processRegistry(client.getRegistry("minecraft:entity_type"), lists.entity)
-  processRegistry(client.getRegistry("minecraft:block"), lists.block)
-
-  --#ENDREGION
-  --#REGION ˚♡ Init vars ♡˚
-
-  local foxpat = function(self) end
-  local shiftHeld
-  local patting, patTime, firstPat = false, 0, true
-  local pattingSelf, patSelfTime, firstSelfPat = false, 0, true
-
-  local configFile = "FOXAPI"
-  local configAPI = config:loadFrom(configFile, "foxpat") or {
-    keybinds = {
-      crouch = "key.keyboard.left.shift",
-      pat = "key.mouse.right",
-      patSelf = "key.mouse.middle",
-    },
-  }
-  config:saveTo(configFile, "foxpat", configAPI)
-
-  --#ENDREGION
-  --#REGION ˚♡ Keybinds ♡˚
-
-  ---@type Keybind[]
-  local buttons = {
-    crouch = keybinds
-        :newKeybind("FOXPat - Crouch", "key.keyboard.left.shift")
-        :setKey(configAPI.keybinds.crouch or "key.keyboard.left.shift"),
-    pat = keybinds
-        :newKeybind("FOXPat - Pat", "key.mouse.right")
-        :setKey(configAPI.keybinds.pat or "key.mouse.right"),
-    patSelf = keybinds
-        :newKeybind("FOXPat - Pat Self", "key.mouse.middle")
-        :setKey(configAPI.keybinds.patSelf or "key.mouse.middle"),
-  }
-
-  function events.tick()
-    if host:getScreen() ~= "org.figuramc.figura.gui.screens.KeybindScreen" then return end
-    for key, keyCode in pairs(configAPI.keybinds) do
-      if buttons[key]:getKey() ~= keyCode then
-        configAPI.keybinds[key] = buttons[key]:getKey()
-        config:saveTo(configFile, "foxpat", configAPI)
+local function processRegistry(registry, config)
+  local whitelist, blacklist = config.whitelist, config.blacklist
+  local function processList(list)
+    for i = 1, #list do
+      local str = list[i]
+      if not _t_contains(registry, _s_format('"%s"', str)) then
+        local matchTbl = _t_gmatch(registry, _s_format(matchPattern, str))
+        for j = 1, #matchTbl do _t_insert(list, matchTbl[j]) end
+        list[i] = nil
       end
     end
   end
 
-  buttons.crouch:onPress(function() shiftHeld = true end)
-  buttons.crouch:onRelease(function() shiftHeld = false end)
+  processList(whitelist)
+  processList(blacklist)
 
-  buttons.pat:onPress(function()
-    if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
-      patting = true
-      foxpat()
-    end
-  end)
-  buttons.pat:onRelease(function()
-    patting = false
-    firstPat = true
-    patTime = 0
-  end)
+  config.whitelist = _t_invert(whitelist)
+  config.blacklist = _t_invert(blacklist)
+end
 
-  buttons.patSelf:onPress(function()
-    if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
-      pattingSelf = true
-      foxpat(true)
-    end
-  end)
-  buttons.patSelf:onRelease(function()
-    pattingSelf = false
-    firstSelfPat = true
-    patSelfTime = 0
-  end)
+processRegistry(_c_registry("minecraft:entity_type"), lists.entity)
+processRegistry(_c_registry("minecraft:block"), lists.block)
 
-  function events.tick()
-    if patting then
-      patTime = patTime + 1
-      if patTime % (FOXAPI.foxpat.config.patDelay or 3) == 0 then
-        foxpat()
-      end
-    end
-    if pattingSelf then
-      patSelfTime = patSelfTime + 1
-      if patSelfTime % (FOXAPI.foxpat.config.patDelay or 3) == 0 then
-        foxpat(true)
-      end
-    end
-  end
+--#ENDREGION
+--#REGION ˚♡ Init vars ♡˚
 
-  --#ENDREGION
-  --#REGION ˚♡ Main pat function ♡˚
+local foxpat
+local shiftHeld
+local patting, patTime, firstPat = false, 0, true
+local pattingSelf, patSelfTime, firstSelfPat = false, 0, true
 
-  foxpat = function(self)
-    local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
-    local eyeOffset = renderer:getEyeOffset()
-    if eyeOffset then myPos = myPos + eyeOffset end
+local configAPI = config:loadFrom("FOXAPI", "foxpat") or {
+  keybinds = {
+    crouch = "key.keyboard.left.shift",
+    pat = "key.mouse.right",
+    patSelf = "key.mouse.middle",
+  },
+}
+config:saveTo("FOXAPI", "foxpat", configAPI)
+local k = configAPI.keybinds
 
-    local block, hitPos = player:getTargetedBlock(true, 5)
-    local dist = (myPos - hitPos):length()
-    local targetType = "block"
+--#ENDREGION
+--#REGION ˚♡ Keybinds ♡˚
 
-    local entity, entityPos
-    if self then
-      entity, entityPos = player, player:getPos()
-    else
-      entity, entityPos = player:getTargetedEntity(5)
-    end
-    if entity then
-      local newDist = (myPos - entityPos):length()
-      if newDist < dist then
-        targetType = "entity"
-      end
-    end
+---@type Keybind[]
+local b = {
+  crouch = keybinds
+      :newKeybind("FOXPat - Crouch", "key.keyboard.left.shift")
+      :setKey(k.crouch or "key.keyboard.left.shift"),
+  pat = keybinds
+      :newKeybind("FOXPat - Pat", "key.mouse.right")
+      :setKey(k.pat or "key.mouse.right"),
+  patSelf = keybinds
+      :newKeybind("FOXPat - Pat Self", "key.mouse.middle")
+      :setKey(k.patSelf or "key.mouse.middle"),
+}
 
-    if targetType == "block" then
-      if not (lists.block.whitelist[block.id] or table.contains(lists.block.whitelist, "*")) or
-          (lists.block.blacklist[block.id] or table.contains(lists.block.blacklist, "*")) then
-        return
-      end
-
-      local blockVars = getAvatarVarsFromBlock(block)
-      if blockVars["patpat.noPats"] then return end -- Keep old compatibility
-      -- Check crouching
-      if not blockVars["foxpat.actAsInteractable"] and
-          ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and buttons.crouch:getID() ~= -1 then
-        return
-      end
-      -- Check empty hand
-      if not blockVars["foxpat.actAsInteractable"] and
-          ((FOXAPI.foxpat.config.requireEmptyHand or (type(FOXAPI.foxpat.config.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
-          ((FOXAPI.foxpat.config.requireEmptyOffHand or (type(FOXAPI.foxpat.config.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
-        return
-      end
-
-      local blockPos = block:getPos()
-      local packedCoord = packCoord(blockPos)
-      foxpatBlockPing(packedCoord)
-      pings.foxpatBlock(packedCoord)
-    else
-      local entityType = entity:getType()
-      if not (lists.entity.whitelist[entityType] or table.contains(lists.entity.whitelist, "*")) or
-          (lists.entity.blacklist[entityType] or table.contains(lists.entity.blacklist, "*")) then
-        return
-      end
-
-      local entityVars = entity:getVariable()
-      if entityVars["patpat.noPats"] then return end -- Keep old compatibility
-      -- Check crouching
-      if not entityVars["foxpat.actAsInteractable"] and
-          ((not self and firstPat) or (self and firstSelfPat)) and
-          not shiftHeld and buttons.crouch:getID() ~= -1 then
-        return
-      end
-      -- Check empty hand
-      if not entityVars["foxpat.actAsInteractable"] and
-          ((FOXAPI.foxpat.config.requireEmptyHand or (type(FOXAPI.foxpat.config.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
-          ((FOXAPI.foxpat.config.requireEmptyOffHand or (type(FOXAPI.foxpat.config.requireEmptyOffHand) == "nil" and false)) and player:getItem(2).id ~= "minecraft:air") then
-        return
-      end
-
-      local entityUUID = entity:getUUID()
-      local packedUUID = packUUID(entityUUID)
-      foxpatEntityPing(packedUUID)
-      pings.foxpatEntity(packedUUID)
-    end
-    if self then
-      firstSelfPat = FOXAPI.foxpat.config.requireCrouch or
-          (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
-    else
-      firstPat = FOXAPI.foxpat.config.requireCrouch or
-          (type(FOXAPI.foxpat.config.requireCrouch) == "nil" and false)
+function events.tick()
+  if host:getScreen() ~= "org.figuramc.figura.gui.screens.KeybindScreen" then return end
+  for key, keyCode in pairs(k) do
+    if b[key]:getKey() ~= keyCode then
+      k[key] = b[key]:getKey()
+      config:saveTo("FOXAPI", "foxpat", configAPI)
     end
   end
+end
+
+b.crouch:onPress(function() shiftHeld = true end)
+b.crouch:onRelease(function() shiftHeld = false end)
+
+b.pat:onPress(function()
+  if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
+    patting = true
+    return foxpat()
+  end
+end)
+b.pat:onRelease(function()
+  patting = false
+  firstPat = true
+  patTime = 0
+end)
+
+b.patSelf:onPress(function()
+  if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
+    pattingSelf = true
+    return foxpat(true)
+  end
+end)
+b.patSelf:onRelease(function()
+  pattingSelf = false
+  firstSelfPat = true
+  patSelfTime = 0
+end)
+
+function events.tick()
+  if patting then
+    patTime = patTime + 1
+    if patTime % (cfg.patDelay or 3) == 0 then foxpat() end
+  end
+  if pattingSelf then
+    patSelfTime = patSelfTime + 1
+    if patSelfTime % (cfg.patDelay or 3) == 0 then foxpat(true) end
+  end
+end
+
+--#ENDREGION
+--#REGION ˚♡ Main pat function ♡˚
+
+local function checkWhitelist(list, id)
+  return not (lists[list].whitelist[id] or _t_contains(lists[list].whitelist, "*")) or
+      (lists[list].blacklist[id] or _t_contains(lists[list].blacklist, "*"))
+end
+
+local function checkCrouching(vars, self)
+  return not vars["foxpat.actAsInteractable"] and
+      ((not self and firstPat) or (self and firstSelfPat)) and
+      not shiftHeld and b.crouch:getID() ~= -1
+end
+
+local function checkEmptyHand(vars)
+  return not vars["foxpat.actAsInteractable"] and
+      ((cfg.requireEmptyHand or (type(cfg.requireEmptyHand) == "nil" and true)) and player:getItem(1).id ~= "minecraft:air") or
+      ((cfg.requireEmptyOffHand or cfg.requireEmptyOffHand) and player:getItem(2).id ~= "minecraft:air")
+end
+
+foxpat = function(self)
+  local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
+      :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos)
+
+  local block, hitPos = player:getTargetedBlock(true, 5)
+  local dist = (myPos - hitPos):length()
+  local isBlock = true
+
+  ---@diagnostic disable-next-line: unbalanced-assignments
+  local entity, entityPos = self and player or
+      raycast:entity(myPos, myPos + player:getLookDir():mul(5, 5, 5),
+        function(entity) return entity ~= player end)
+
+  if entity then
+    local newDist = (myPos - (entityPos or player:getPos())):length()
+    isBlock = not (newDist < dist or #block:getCollisionShape() == 0)
+  end
+
+  if isBlock then
+    if checkWhitelist("block", block.id) then return end
+
+    local blockVars = getAvatarVarsFromBlock(block)
+    if blockVars["patpat.noPats"] or checkCrouching(blockVars, self) or checkEmptyHand(blockVars) then return end
+
+    local blockPos = block:getPos()
+    local packedCoord = packCoord(blockPos)
+    foxpatBlockPing(packedCoord)
+    pings.foxpatBlock(packedCoord)
+  else
+    if checkWhitelist("entity", entity:getType()) then return end
+
+    local entityVars = entity:getVariable()
+    if entityVars["patpat.noPats"] or checkCrouching(entityVars, self) or checkEmptyHand(entityVars) then return end
+
+    local entityUUID = entity:getUUID()
+    local packedUUID = packUUID(entityUUID)
+    foxpatEntityPing(packedUUID)
+    pings.foxpatEntity(packedUUID)
+  end
+  if self then
+    firstSelfPat = cfg.requireCrouch
+  else
+    firstPat = cfg.requireCrouch
+  end
+  return true
 end
 
 --#ENDREGION
@@ -632,9 +652,9 @@ local FOXMetatable = getmetatable(FOXAPI)
 ---@class Event.SkullPat: Event
 ---@class Event.Patting: Event
 ---@alias Event.Pat.state
----| 0 # Pat
----| 1 # Unpat
----| 2 # While pat
+---| "PAT"
+---| "UNPAT"
+---| "WHILE_PAT"
 ---@alias Event.EntityPat.func
 ---| fun(patter?: Player, state?: Event.Pat.state): (cancel: boolean|boolean[]?)
 ---@alias Event.SkullPat.func
@@ -648,7 +668,10 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the player patting you or your skull, and the current patting state.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the player patting you or your skull, and the current patting state.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field entity_pat Event.EntityPat | Event.EntityPat.func
 ---`FOXAPI` This event runs when you get patted or unpatted.
 ---> ```lua
@@ -656,7 +679,10 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the player patting you or your skull, and the current patting state.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the player patting you or your skull, and the current patting state.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field ENTITY_PAT Event.EntityPat | Event.EntityPat.func
 ---`FOXAPI` This event runs when one of your skulls gets patted or unpatted.
 ---> ```lua
@@ -664,7 +690,10 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the player patting you or your skull, the current patting state, and the coordinates of this skull.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the player patting you or your skull, the current patting state, and the coordinates of this skull.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field skull_pat Event.SkullPat | Event.SkullPat.func
 ---`FOXAPI` This event runs when one of your skulls gets patted or unpatted.
 ---> ```lua
@@ -672,7 +701,10 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the player patting you or your skull, the current patting state, and the coordinates of this skull.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the player patting you or your skull, the current patting state, and the coordinates of this skull.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field SKULL_PAT Event.SkullPat | Event.SkullPat.func
 ---`FOXAPI` This event runs when you pat another player, entity, or block. It can be used as an alternative to summoning particles.
 ---> ```lua
@@ -680,7 +712,10 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the entity you're patting or nil, and the block you are patting or nil, the bounding box, and if the player you're patting allows hearts or not.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the entity you're patting or nil, and the block you are patting or nil, the bounding box, and if the player you're patting allows hearts or not.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field patting Event.Patting | Event.Patting.func
 ---`FOXAPI` This event runs when you pat another player, entity, or block. It can be used as an alternative to summoning particles.
 ---> ```lua
@@ -688,26 +723,71 @@ local FOXMetatable = getmetatable(FOXAPI)
 --->  -> cancel: boolean|boolean[]?
 ---> ```
 ---> ***
----> A callback that is given the data of the entity you're patting or nil, and the block you are patting or nil, the bounding box, and if the player you're patting allows hearts or not.<br><br>Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
+---> A callback that is given the data of the entity you're patting or nil, and the block you are patting or nil, the bounding box, and if the player you're patting allows hearts or not.
+---
+---
+---Return `true` to cancel both visually patting and hearts. Return `{ boolean, boolean }` to cancel one or the other.
 ---@field PATTING Event.Patting | Event.Patting.func
 FOXMetatable.__events = FOXMetatable.__events
 
 ---@class foxpat.config
----@field swingArm boolean? Defaults to `true`<br>Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
+---Defaults to `true`
+---
+---Whether patting should swing your arm. Recommended to turn this off when you set a pat animation.
+---@field swingArm boolean?
 ---@field patAnimation Animation? What animation should be played while you're patting.
----@field patParticle Minecraft.particleID? Defaults to `"minecraft:heart"`<br>What particle should play while you're patting.
----@field playMobSounds boolean? Defaults to `true`<br>Whether patting a mob plays a sound.
----@field mobSoundPitch number? Defaults to `1`<br>The pitch mob sounds will be played at.
----@field mobSoundRange number? Defaults to `0.25`<br>How varied the mob sound pitch will be.
----@field playNoteSounds boolean? Defaults to `true`<br>Whether patting a player head plays the noteblock sound associated with that head.
----@field noteSoundPitch number? Defaults to `1`<br>Set the pitch player head noteblock sounds will be played at.
----@field noteSoundRange number? Defaults to `0.25`<br>How varied the noteblock sound pitch will be.
----@field requireCrouch boolean? Defaults to `false`<br>Whether you have to be crouching after your first crouch to continue patting.
----@field requireEmptyHand boolean? Defaults to `true`<br>Whether an empty hand is required for patting.
----@field requireEmptyOffHand boolean? Defaults to `false`<br>Whether an empty offhand is required for patting.
----@field actAsInteractable boolean? Defaults to `false`<br>If you want another player to simply right click you or your player head without crouching or while holding an item.
----@field patDelay number? Defaults to `3`<br>How often patting should occur in ticks.
----@field holdFor number? Defaults to `10`<br>How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than `patDelay`.
+---Defaults to `"minecraft:heart"`
+---
+---What particle should play while you're patting.
+---@field patParticle Minecraft.particleID?
+---Defaults to `true`
+---
+---Whether patting a mob plays a sound.
+---@field playMobSounds boolean?
+---Defaults to `1`
+---
+---The pitch mob sounds will be played at.
+---@field mobSoundPitch number?
+---Defaults to `0.25`
+---
+---How varied the mob sound pitch will be.
+---@field mobSoundRange number?
+---Defaults to `true`
+---
+---Whether patting a player head plays the noteblock sound associated with that head.
+---@field playNoteSounds boolean?
+---Defaults to `1`
+---
+---Set the pitch player head noteblock sounds will be played at.
+---@field noteSoundPitch number?
+---Defaults to `0.25`
+---
+---How varied the noteblock sound pitch will be.
+---@field noteSoundRange number?
+---Defaults to `false`
+---
+---Whether you have to be crouching after your first crouch to continue patting.
+---@field requireCrouch boolean?
+---Defaults to `true`
+---
+---Whether an empty hand is required for patting.
+---@field requireEmptyHand boolean?
+---Defaults to `false`
+---
+---Whether an empty offhand is required for patting.
+---@field requireEmptyOffHand boolean?
+---Defaults to `false`
+---
+---If you want another player to simply right click you or your player head without crouching or while holding an item.
+---@field actAsInteractable boolean?
+---Defaults to `3`
+---
+---How often patting should occur in ticks.
+---@field patDelay number?
+---Defaults to `10`
+---
+---How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than `patDelay`.
+---@field holdFor number?
 ---@field boundingBox Vector3? A custom bounding box that defines where people can pat you and the area that hearts get spawned on you.
 FOXAPI.foxpat.config = FOXAPI.foxpat.config
 
