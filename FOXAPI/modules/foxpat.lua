@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.1.1
+FOX's Patpat Module v1.1.2
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -66,7 +66,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.1.1", 13 },
+  _ver = { "1.1.2", 14 },
 }
 if not FOXAPI then
   __race = { _s_gsub(_t_concat({ ... }, "/"), "/", "."), _module }
@@ -331,7 +331,8 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
   -- Emit particles (This module is written in a way to allow you to modify your own particles, please do not modify code directly)
   if not noHearts and not avatarVars["patpat.noHearts"] then
     pos = pos - boundingBox.x_z * 0.5 + _v_rand() * boundingBox
-    particles[particles:isPresent(cfg.patParticle) and cfg.patParticle or "minecraft:heart"]:pos(pos):scale(1):spawn()
+    particles[particles:isPresent(cfg.patParticle) and cfg.patParticle or "minecraft:heart"]:pos(pos)
+        :scale(1):spawn()
   end
 end
 
@@ -411,11 +412,12 @@ local function foxpatBlockPing(c)
     local blockData = block:getEntityData()
     local blockMatch = _s_match(block.id, ":(.-)_")
     local soundName
-    if blockData and (blockData.SpawnData or blockData.spawn_data) then
+    local mobSpawner = blockData and (blockData.SpawnData or blockData.spawn_data)
+    local spawnerEntity = mobSpawner and mobSpawner.entity and mobSpawner.entity.id
+    if spawnerEntity then
       -- Find sound for mob spawners
       if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) then
-        soundName = _s_format("%s:entity.%s.ambient",
-          _s_match((blockData.SpawnData or blockData.spawn_data).entity.id, "^(.-):(.-)$"))
+        soundName = _s_format("%s:entity.%s.ambient", _s_match(spawnerEntity, "^(.-):(.-)$"))
       end
     elseif blockMatch then
       -- Find sound for player skull
