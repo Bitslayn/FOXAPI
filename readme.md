@@ -8,7 +8,7 @@
 
 Downloaded modules go into the modules folder `FOXAPI\modules`. Only modules written for FOXAPI should be put in this folder. Subfolders are supported.
 
-### Require
+## Using FOXAPI
 
 All modules and libraries are returned from a single require to `FOXAPI\api.lua`. Here's an example of how you can require a module.
 
