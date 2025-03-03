@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.1.0
+FOX's Patpat Module v1.1.1
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
