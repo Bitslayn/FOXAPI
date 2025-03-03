@@ -4,7 +4,7 @@
 
 [Download](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FBitslayn%2FFOXAPI%2Ftree%2Fmain%2FFOXAPI) the entire FOXAPI folder containing `api.lua` and the modules folder. Move the FOXAPI folder to your avatar's directory.
 
-## Downloading Modules
+## Updating Modules
 
 Downloaded modules go into the modules folder `FOXAPI\modules`. Only modules written for FOXAPI should be put in this folder. Subfolders are supported.
 
