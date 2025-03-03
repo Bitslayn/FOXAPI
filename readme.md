@@ -27,10 +27,13 @@ foxpat.config.patParticle = "minecraft:heart"
 Some functions of this API are also global (With the use of a require)
 
 ```lua
-local foxpat = require("FOXAPI.api").foxpat
+require("FOXAPI.api")
 
 -- FOXPat event
 function events.entity_pat(entity, state)
   print("Patted by " .. entity)
 end
+
+-- FOXAPI functon
+print(vectors.random())
 ```
