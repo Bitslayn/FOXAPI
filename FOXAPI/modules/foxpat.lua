@@ -50,15 +50,7 @@ local lists = {
 
 -- Do not touch anything below this line unless you know what you are doing! Chances are, what you are trying to configure already can be configured externally.
 
-local _c_registry, _c_uuid = client.getRegistry, client.intUUIDToString
-local _m_clamp, _m_floor, _m_min, _m_random = math.clamp, math.floor, math.min, math.random
-local _s_byte, _s_char, _s_find, _s_format, _s_gsub, _s_match, _s_sub =
-    string.byte, string.char, string.find, string.format, string.gsub, string.match, string.sub
-local _t_concat, _t_contains, _t_gmatch, _t_invert, _t_insert, _t_match, _t_unpack =
-    table.concat, table.contains, table.gmatch, table.invert, table.insert, table.match,
-    table.unpack
-local _v_rand = vectors.random
-local _w_block, _w_entity, _w_vars = world.getBlockState, world.getEntity, world.avatarVars
+local _s_find, _s_gsub, _s_match, _t_concat = string.find, string.gsub, string.match, table.concat
 
 local path = ...
 assert(_s_find(path, "FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
@@ -66,12 +58,20 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.1.2", 14 },
+  _ver = { "1.1.3", 15 },
 }
 if not FOXAPI then
   __race = { _s_gsub(_t_concat({ ... }, "/"), "/", "."), _module }
   require(_s_match(path, "(.*)modules") .. "api")
 end
+
+local _c_registry, _c_uuid = client.getRegistry, client.intUUIDToString
+local _m_clamp, _m_floor, _m_min, _m_random = math.clamp, math.floor, math.min, math.random
+local _s_byte, _s_char, _s_format, _s_sub = string.byte, string.char, string.format, string.sub
+local _t_contains, _t_gmatch, _t_invert, _t_insert, _t_match, _t_unpack =
+    table.contains, table.gmatch, table.invert, table.insert, table.match, table.unpack
+local _v_rand = vectors.random
+local _w_block, _w_entity, _w_vars = world.getBlockState, world.getEntity, world.avatarVars
 
 --#REGION ˚♡ Init vars and functions ♡˚
 
@@ -507,6 +507,7 @@ local configAPI = config:loadFrom("FOXAPI", "foxpat") or {
     crouch = "key.keyboard.left.shift",
     pat = "key.mouse.right",
     patSelf = "key.mouse.middle",
+    toggleDebug = "key.keyboard.page.up",
   },
 }
 config:saveTo("FOXAPI", "foxpat", configAPI)
@@ -526,6 +527,8 @@ local b = {
   patSelf = keybinds
       :newKeybind("FOXPat - Pat Self", "key.mouse.middle")
       :setKey(k.patSelf or "key.mouse.middle"),
+  toggleDebug = keybinds:newKeybind("FOXPat - Toggle Debug", "key.keyboard.page.up")
+      :setKey(k.toggleDebug or "key.keyboard.page.up"),
 }
 
 function events.tick()
@@ -565,6 +568,14 @@ b.patSelf:onRelease(function()
   patSelfTime = 0
 end)
 
+b.toggleDebug:onPress(function()
+  cfg.debug = not cfg.debug
+  host:actionbar(toJson({
+    text = "FOXPat - " .. (cfg.debug and "Enabled" or "Disabled") .. " debug mode",
+    color = "#fc6c85",
+  }))
+end)
+
 function events.tick()
   if patting then
     patTime = patTime + 1
@@ -596,6 +607,14 @@ local function checkEmptyHand(vars)
       ((cfg.requireEmptyOffHand or cfg.requireEmptyOffHand) and player:getItem(2).id ~= "minecraft:air")
 end
 
+function copyPrint(str)
+  if not (cfg.debug and isHost) then return end
+  printJson(toJson({
+    text = str .. " §7(click to copy)",
+    clickEvent = { action = "copy_to_clipboard", value = str },
+  }))
+end
+
 foxpat = function(self)
   local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
       :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos)
@@ -615,6 +634,7 @@ foxpat = function(self)
   end
 
   if isBlock then
+    copyPrint(block.id)
     if checkWhitelist("block", block.id) then return end
 
     local blockVars = getAvatarVarsFromBlock(block)
@@ -625,6 +645,7 @@ foxpat = function(self)
     foxpatBlockPing(packedCoord)
     pings.foxpatBlock(packedCoord)
   else
+    copyPrint(entity:getType())
     if checkWhitelist("entity", entity:getType()) then return end
 
     local entityVars = entity:getVariable()
@@ -791,6 +812,7 @@ FOXMetatable.__events = FOXMetatable.__events
 ---How long should it be after the last pat before you're considered no longer patting. Shouldn't be made less than `patDelay`.
 ---@field holdFor number?
 ---@field boundingBox Vector3? A custom bounding box that defines where people can pat you and the area that hearts get spawned on you.
+---@field debug boolean? Whether debug mode is enabled. Debug mode prints the id of the entity or block you are patting.
 FOXAPI.foxpat.config = FOXAPI.foxpat.config
 
 --#ENDREGION
