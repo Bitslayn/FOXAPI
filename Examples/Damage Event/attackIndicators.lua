@@ -1,4 +1,4 @@
-require("Scripts.Libs.FOX.FOXAPI.api")
+require("FOXAPI.api")
 
 ---@type table<number, indicator>
 local indicators = {}
