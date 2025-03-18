@@ -58,7 +58,7 @@ end
 --#ENDREGION
 --#REGION ˚♡ Listen for Pain ♡˚
 
-events:new("damage")
+events:new("entity_damage")
 
 local targets = {}
 
