@@ -73,7 +73,7 @@ local function checkHealth(type)
     if healthType == "newHealth" then
       local damage = tbl.oldHealth - tbl.newHealth
       if damage > 0 then
-        events:call("damage", tbl.entity, targets[uuid] and player or nil, damage)
+        events:call("entity_damage", tbl.entity, targets[uuid] and player or nil, damage)
       end
       tbl.newHealth = nil
       tbl.oldHealth = nil
