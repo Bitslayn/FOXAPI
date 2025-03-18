@@ -1,4 +1,4 @@
-require("FOXAPI.api")
+require("Scripts.Libs.FOX.FOXAPI.api")
 
 ---@type table<number, indicator>
 local indicators = {}
@@ -8,11 +8,12 @@ local indicators = {}
 function events.tick()
   for i, indicator in pairs(indicators) do
     indicator.tick = indicator.tick + 1
-    if indicator.tick < 15 then return end
-    indicator.task:remove()
-    indicator.gimbal:remove()
-    indicator.part:remove()
-    indicators[i] = nil
+    if indicator.tick > 15 then
+      indicator.task:remove()
+      indicator.gimbal:remove()
+      indicator.part:remove()
+      indicators[i] = nil
+    end
   end
 end
 
@@ -51,8 +52,9 @@ end
 function events.entity_damage(entity, source, damage)
   -- Avoid creating multiple damage indicators by checking if the target player has this script installed.
   if entity:getVariable("hasDamageIndicators") and entity ~= player then return end -- Keep this
-  if not (entity == player or source == player) then return end
-  newIndicator(entity:getPos() + entity:getBoundingBox()._y_, damage)
+  if not (entity == player or source == player) and not host:isHost() then return end
+  local hitbox = entity:getBoundingBox()
+  newIndicator(entity:getPos() + hitbox._y_ + vectors.random(3, -hitbox.x, hitbox.x).x_z, damage)
 end
 
 avatar:store("hasDamageIndicators", true) -- Keep this

@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Damage Event v1.0.1
+FOX's Damage Event v1.0.2
 A FOXAPI Module
 
 Creates a custom event which fires whenever an entity is damaged.
@@ -22,7 +22,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Damage Event",
   _desc = "Creates a custom event which fires whenever an entity is damaged.",
-  _ver = { "1.0.1", 2 },
+  _ver = { "1.0.2", 3 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -40,19 +40,22 @@ local sourceTimeout = 10
 
 local entities = {}
 
----@param id Minecraft.soundID
-function events.on_play_sound(id, pos, _, _, _, _, path)
-  if not path then return end
-  if not (id:find("entity") or id:find("step") or id:find("hurt") or id:find("death")) then return end
+local heartBeat = 1
+local range = vec(64, 64, 64)
 
-  local entity = raycast:entity(pos, pos + vec(0, 1, 0))
-  ---@diagnostic disable-next-line: undefined-field
-  if not (entity and entity.getHealth) then return end
-
-  local type = entity:getType()
-  local uuid = entity:getUUID()
-  entities[type] = entities[type] or {}
-  entities[type][uuid] = { entity = entity, health = nil }
+function events.tick()
+  heartBeat = heartBeat % 20 + 1
+  if heartBeat ~= 20 then return end
+  local pos = player:getPos()
+  for _, entity in pairs(world.getEntities(pos - range, pos + range)) do
+    ---@diagnostic disable-next-line: undefined-field
+    if entity.getHealth then
+      local type = entity:getType()
+      local uuid = entity:getUUID()
+      entities[type] = entities[type] or {}
+      entities[type][uuid] = { entity = entity, health = nil }
+    end
+  end
 end
 
 --#ENDREGION
