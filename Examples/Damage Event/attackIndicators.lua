@@ -48,7 +48,7 @@ end
 
 -- Damage event runs function to create indicators
 
-function events.damage(entity, source, damage)
+function events.entity_damage(entity, source, damage)
   -- Avoid creating multiple damage indicators by checking if the target player has this script installed.
   if entity:getVariable("hasDamageIndicators") and entity ~= player then return end -- Keep this
   if not (entity == player or source == player) then return end

@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Damage Event v1.0.0
+FOX's Damage Event v1.0.1
 A FOXAPI Module
 
 Creates a custom event which fires whenever an entity is damaged.
@@ -22,7 +22,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Damage Event",
   _desc = "Creates a custom event which fires whenever an entity is damaged.",
-  _ver = { "1.0.0", 1 },
+  _ver = { "1.0.1", 2 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -162,14 +162,14 @@ local FOXMetatable = getmetatable(FOXAPI)
 ---> ```
 ---> ***
 ---> A callback that is given the data of the entity taking damage, the entity which dealt the damage or nil (can only be player due to limitations), and the amount of damage taken.
----@field damage Event.Damage | Event.Damage.func
+---@field entity_damage Event.Damage | Event.Damage.func
 ---`FOXAPI` This event runs when any entity takes damage.
 ---> ```lua
 ---> (callback) function(entity: Entity, source: Player|nil, damage: number)
 ---> ```
 ---> ***
 ---> A callback that is given the data of the entity taking damage, the entity which dealt the damage or nil (can only be player due to limitations), and the amount of damage taken.
----@field DAMAGE Event.Damage | Event.Damage.func
+---@field ENTITY_DAMAGE Event.Damage | Event.Damage.func
 FOXMetatable.__events = FOXMetatable.__events
 
 --#ENDREGION
