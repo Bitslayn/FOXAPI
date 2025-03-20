@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's AFK Module v1.0.0
+FOX's AFK Module v1.0.1
 A FOXAPI Module
 
 Lets you create an AFK timer in your nameplate and run functions while you're AFK.
@@ -22,7 +22,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.2", 7 },
   _name = "FOX's AFK Module",
   _desc = "Lets you create an AFK timer in your nameplate and run functions while you're AFK.",
-  _ver = { "1.0.0", 1 },
+  _ver = { "1.0.1", 2 },
 }
 if not FOXAPI then
   __race = { apiPath:gsub("/", ".") .. "." .. moduleName, _module }
@@ -287,8 +287,9 @@ local function postInitMain()
 
   tickType = (type(cfg.runUnloaded) == "nil" and permissionLevels[avatar:getPermissionLevel()] or cfg.runUnloaded) and
       "world_tick" or "tick"
-  if not (type(cfg.usePlaceholder) == "nil" or cfg.usePlaceholder) then return end
-  events[tickType]:register(postInit) -- Initialize nameplate metatables and handlers
+  if (type(cfg.usePlaceholder) == "nil" or cfg.usePlaceholder) then
+    events[tickType]:register(postInit)     -- Initialize nameplate metatables and handlers
+  end
   if cfg.runUnloaded == false then
     events.tick:register(runTimers)
   else
