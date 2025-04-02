@@ -1,6 +1,10 @@
-## Downloading the API
+## Download Instructions
 
-[Download](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FBitslayn%2FFOXAPI%2Ftree%2Fmain%2FFOXAPI) the entire FOXAPI folder containing `api.lua` and the modules folder. Move the FOXAPI folder to your avatar's directory.
+1) [Download](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FBitslayn%2FFOXAPI%2Ftree%2Fmain%2FFOXAPI) the entire FOXAPI folder containing `api.lua` and all its modules.
+
+2) Move the FOXAPI folder to your avatar's directory.
+
+3) Delete any modules inside the module folder which you aren't going to use. More information about modules below.
 
 ## Modules
 
