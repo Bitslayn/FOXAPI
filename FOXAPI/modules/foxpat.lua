@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.1.2
+FOX's Patpat Module v1.2.0
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -16,6 +16,19 @@ Github Docs: https://github.com/Bitslayn/FOXAPI/wiki/Foxpat
 
 -- DO NOT insert your own code here. This is a library module/API, not a script.
 
+local path = ...
+assert(string.find(path, "FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
+local _module = {
+  _api = { "FOXAPI", "1.1.3", 8 },
+  _name = "FOX's Patpat Module",
+  _desc = "Lets you pat other players, entities, and skulls.",
+  _ver = { "1.2.0", 16 },
+}
+if not FOXAPI then
+  __race = { string.gsub(table.concat({ ... }, "/"), "/", "."), _module }
+  require(string.match(path, "(.*)modules") .. "api")
+end
+
 --#REGION ˚♡ Whitelists/blacklists ♡˚
 
 -- Change these values to your liking; just don't delete the table. (There's no way to make these external configs as they are pre-processed)
@@ -25,16 +38,20 @@ local lists = {
     whitelist = {
       "head",
       "skull",
-      "minecraft:carved_pumpkin",
-      "minecraft:jack_o_lantern",
+      "carved_pumpkin",
+      "jack_o_lantern",
       "minecraft:observer",
       "minecraft:spawner",
       "minecraft:trial_spawner",
     },
-    blacklist = { "minecraft:piston_head" },
+    blacklist = {
+      "minecraft:piston_head",
+    },
   },
   entity = { -- List of entites that should be pattable. Takes a pattern or generic like "minecraft:stone". Use * to match all. Blacklist gets applied before whitelist.
-    whitelist = { "*" },
+    whitelist = {
+      "*",
+    },
     blacklist = {
       "boat",
       "minecart",
@@ -47,33 +64,63 @@ local lists = {
   },
 }
 --#ENDREGION
+--#REGION ˚♡ Entity sound overrides ♡˚
+
+-- Allows you to change which sounds entities play for entities. This is useful if an entity doesn't have an ambient or idle sound.
+-- Overrides can be either a sound id, entity id, or a function which returns a sound id. Functions are given the entity being patted, or nothing if patting a mob spawner.
+-- IMPORTANT Make sure to check if entity is actually defined to avoid erroring.
+
+---@type table<Minecraft.entityID, fun(entity: Entity?): sound: Minecraft.soundID>|table<Minecraft.entityID, Minecraft.entityID>|table<Minecraft.entityID, Minecraft.soundID>
+local entitySoundOverrides = {
+  -- Sound overrides to play sound of another entity type
+  ["minecraft:cave_spider"] = "minecraft:spider",
+  ["minecraft:mooshroom"] = "minecraft:cow",
+  ["minecraft:trader_llama"] = "minecraft:llama",
+
+  -- Sound overrides to play sound by id
+  ["minecraft:bee"] = "minecraft:entity.bee.pollinate",
+  ["minecraft:creeper"] = "minecraft:entity.creeper.primed",
+  ["minecraft:iron_golem"] = "minecraft:entity.iron_golem.repair",
+  ["minecraft:magma_cube"] = "minecraft:entity.slime.squish",
+  ["minecraft:pufferfish"] = "minecraft:entity.puffer_fish.flop",
+  ["minecraft:slime"] = "minecraft:entity.slime.squish",
+  ["minecraft:sniffer"] = "minecraft:entity.sniffer.idle",
+  ["minecraft:tadpole"] = "minecraft:entity.tadpole.flop",
+
+  -- Sound overrides using a function returning a sound id
+  ["minecraft:allay"] = function(entity)
+    if not entity then return "minecraft:entity.allay.ambient_without_item" end
+    local nbt = entity:getNbt()
+    local isHoldingItem = nbt and nbt.HandItems[1] and nbt.HandItems[1].id
+    return isHoldingItem and "minecraft:entity.allay.ambient_with_item" or
+        "minecraft:entity.allay.ambient_without_item"
+  end,
+  ["minecraft:axolotl"] = function(entity)
+    if not entity then return "minecraft:entity.axolotl.idle_air" end
+    local nbt = entity:getNbt()
+    local isInWater = nbt and nbt.Air and nbt.Air == 6000
+    return isInWater and "minecraft:entity.axolotl.idle_water" or "minecraft:entity.axolotl.idle_air"
+  end,
+  ["minecraft:breeze"] = function(entity)
+    if not entity then return "minecraft:entity.breeze.idle_ground" end
+    local nbt = entity:getNbt()
+    local isOnGround = nbt and nbt.OnGround and nbt.OnGround == 1
+    return isOnGround and "minecraft:entity.breeze.idle_ground" or "minecraft:entity.breeze.idle_air"
+  end,
+}
+
+--#ENDREGION
 
 -- Do not touch anything below this line unless you know what you are doing! Chances are, what you are trying to configure already can be configured externally.
 
-local _s_find, _s_gsub, _s_match, _t_concat = string.find, string.gsub, string.match, table.concat
-
-local path = ...
-assert(_s_find(path, "FOXAPI.modules"), "\n§4FOX's API was not installed correctly!§c")
-local _module = {
-  _api = { "FOXAPI", "1.1.3", 8 },
-  _name = "FOX's Patpat Module",
-  _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.1.3", 15 },
-}
-if not FOXAPI then
-  __race = { _s_gsub(_t_concat({ ... }, "/"), "/", "."), _module }
-  require(_s_match(path, "(.*)modules") .. "api")
-end
-
-local _c_registry, _c_uuid = client.getRegistry, client.intUUIDToString
-local _m_clamp, _m_floor, _m_min, _m_random = math.clamp, math.floor, math.min, math.random
-local _s_byte, _s_char, _s_format, _s_sub = string.byte, string.char, string.format, string.sub
-local _t_contains, _t_gmatch, _t_invert, _t_insert, _t_match, _t_unpack =
-    table.contains, table.gmatch, table.invert, table.insert, table.match, table.unpack
-local _v_rand = vectors.random
-local _w_block, _w_entity, _w_vars = world.getBlockState, world.getEntity, world.avatarVars
-
 --#REGION ˚♡ Init vars and functions ♡˚
+
+local scripts = listFiles("/", true)
+assert(not (table.match(scripts, "patpat") or
+    table.match(scripts, "bunnypat") or
+    table.match(scripts, "Patpat") or
+    table.match(scripts, "petpet")),
+  "FOXPat does not work with other patpat scripts", 2)
 
 local isHost = host:isHost()
 
@@ -100,8 +147,9 @@ function events.tick()
 end
 
 local matchPattern = '"([%%w_:%%-%%.]-%s[%%w_:%%-%%.]-)"'
-local noteBlockImitation = _t_gmatch(_c_registry("sound_event"),
-  _s_format(matchPattern, "note_block.imitate"))
+local soundsRegistry = client.getRegistry("sound_event")
+local noteBlockImitation = table.gmatch(soundsRegistry,
+  string.format(matchPattern, "note_block.imitate"))
 
 local cache = {
   uuidHash = {},     -- [uuid] = hash
@@ -115,9 +163,9 @@ local function packUUID(uuid)
   if not cache.uuidHash[uuid] then
     -- Convert small portion of UUID into a string that can be pinged
     local packedUUID = ""
-    local uuidShort = _s_match(uuid, "%-(%w*)$")
+    local uuidShort = string.match(uuid, "%-(%w*)$")
     for i = 1, 6, 2 do
-      packedUUID = packedUUID .. _s_char(tonumber(_s_sub(uuidShort, i, i + 1), 16))
+      packedUUID = packedUUID .. string.char(tonumber(string.sub(uuidShort, i, i + 1), 16))
     end
     -- Store caches
     cache.uuidHash[uuid] = packedUUID
@@ -137,11 +185,11 @@ local function unpackUUID(packedUUID)
     -- Convert UUID from string into readable UUID
     local uuidShort = ""
     for i = 1, #packedUUID do
-      uuidShort = uuidShort .. _s_format("%02x", _s_byte(packedUUID:sub(i, i)))
+      uuidShort = uuidShort .. string.format("%02x", string.byte(packedUUID:sub(i, i)))
     end
     -- Get UUID from target entity
     local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
-        :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos)
+        :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos) -- If not on host, get from variable
     local target = raycast:entity(myPos, myPos + player:getLookDir():mul(5, 5, 5),
       function(entity) return entity ~= player end)
     if not target then return end -- Make sure there is an entity to get UUID from
@@ -159,7 +207,7 @@ local function unpackUUID(packedUUID)
 end
 
 local function packCoord(coord)
-  local entry = _t_concat({ coord:unpack() }, ",")
+  local entry = table.concat({ coord:unpack() }, ",")
 
   -- Check if this coordinate has been cached
   if not cache.coordHash[entry] then
@@ -170,7 +218,7 @@ local function packCoord(coord)
     -- Convert vec2 coordinate to a string that can be pinged
     local packedCoord = ""
     for i = 1, 2 do
-      packedCoord = packedCoord .. _s_char(finalPos[i])
+      packedCoord = packedCoord .. string.char(finalPos[i])
     end
     -- Store caches
     cache.coordHash[entry] = packedCoord
@@ -196,16 +244,16 @@ local function unpackCoord(packedCoord)
     -- Convert string into vec2 coordinate
     local coord = {}
     for i = 1, #packedCoord do
-      coord[i] = _s_byte(_s_sub(packedCoord, i, i))
+      coord[i] = string.byte(string.sub(packedCoord, i, i))
     end
     -- Convert vec2 coord into vec3
     local finalPos = vec(
       (coord[1] % 16) + chunk.x,
       coord[2] + chunk.y,
-      (_m_floor(coord[1] / 16)) + chunk.z
+      (math.floor(coord[1] / 16)) + chunk.z
     )
     -- Store caches
-    cache.coordHash[_t_concat({ finalPos:unpack() }, ",")] = packedCoord
+    cache.coordHash[table.concat({ finalPos:unpack() }, ",")] = packedCoord
     cache.coordHashMap[packedCoord] = finalPos
     return finalPos
   else
@@ -214,9 +262,10 @@ local function unpackCoord(packedCoord)
 end
 
 local function getAvatarVarsFromBlock(block)
-  if not _s_match(block.id, "head") then return {} end
+  if not string.match(block.id, "head") then return {} end
   local SkullOwner = block:getEntityData().SkullOwner
-  return _w_vars()[_c_uuid(_t_unpack(SkullOwner and SkullOwner.Id or {}))] or {}
+  return world.avatarVars()
+      [client.intUUIDToString(table.unpack(SkullOwner and SkullOwner.Id or {}))] or {}
 end
 
 
@@ -225,87 +274,87 @@ end
 
 --#REGION ˚♡ Handle being patted ♡˚
 
-local myPatters = { entity = {}, skull = {} }
-local entityPatterCount = 0
+local entityPatters, skullPatters = {}, {}
+local entityPattersCount, skullPattersCount = 0, {}
 
 function events.tick()
   -- Entity pat timers
-  for uuid, time in pairs(myPatters.entity) do
+  for uuid, time in pairs(entityPatters) do
     if time <= 0 then
-      entityPatterCount = entityPatterCount - 1
-      myPatters.entity[uuid] = nil
-      events:call("entity_pat", _w_entity(uuid), "UNPAT")
+      entityPattersCount = entityPattersCount - 1
+      entityPatters[uuid] = nil
+      events:call("entity_pat", world.getEntity(uuid), "UNPAT")
     else
-      myPatters.entity[uuid] = time - 1
+      entityPatters[uuid] = time - 1
     end
   end
   -- Skull pat timers
-  for i, headPatters in pairs(myPatters.skull) do
+  for i, headPatters in pairs(skullPatters) do
     local patted = false
     local pos = headPatters.pos
     for uuid, time in pairs(headPatters.list) do
       if time <= 0 then
+        local j = tostring(pos)
+        skullPattersCount[j] = skullPattersCount[j] - 1
         headPatters.list[uuid] = nil
-        events:call("skull_pat", _w_entity(uuid), "UNPAT", pos)
+        events:call("skull_pat", world.getEntity(uuid), "UNPAT", pos)
       else
         headPatters.list[uuid] = time - 1
         patted = true
       end
     end
     if not patted then
-      myPatters.skull[i] = nil
+      skullPatters[i] = nil
     end
   end
 end
 
+local function parseReturns(retTbl)
+  return table.contains(retTbl, "%[true"), table.contains(retTbl, "true%]")
+end
+
 avatar:store("petpet", function(uuid, time)
-  time = _m_clamp(time or 0, cfg.holdFor or 10, 100)
-  local entity = _w_entity(uuid)
-  local prev = myPatters.entity[uuid]
+  time = time or cfg.holdFor or 10
+  local entity = world.getEntity(uuid)
+  local prev = entityPatters[uuid]
   if not prev then
-    entityPatterCount = entityPatterCount + 1
+    entityPattersCount = entityPattersCount + 1
   end
-  myPatters.entity[uuid] = time
-  return events:call("entity_pat", entity, prev and "WHILE_PAT" or "PAT")
+  entityPatters[uuid] = time
+  local noPats, noHearts = parseReturns(
+    events:call("entity_pat", entity, prev and "WHILE_PAT" or "PAT")
+  )
+  avatar:store("patpat.noHearts", noHearts)
+  return noPats, noHearts
 end)
 
 avatar:store("petpet.playerHead", function(uuid, time, x, y, z)
-  if not x or not y or not z then return end
-  time = _m_min(time or (cfg.holdFor or 10), 100)
-  local pos = vec(_m_floor(x), y, _m_floor(z))
+  if not (x and y and z) then return end
+  time = time or cfg.holdFor or 10
+  local entity = world.getEntity(uuid)
+  local pos = vec(math.floor(x), y, math.floor(z))
   local i = tostring(pos)
-  local patters = myPatters.skull[i]
-  if not patters then
-    patters = {}
-    myPatters.skull[i] = { list = patters, pos = pos }
+  skullPatters[i] = skullPatters[i] or { list = {}, pos = pos }
+  skullPattersCount[i] = skullPattersCount[i] or 0
+  local prev = skullPatters[i].list[uuid]
+  if not prev then
+    skullPattersCount[i] = skullPattersCount[i] + 1
   end
-
-  local entity = _w_entity(uuid)
-  local prev = patters[uuid]
-  patters[uuid] = time
-  return events:call("skull_pat", entity, prev and "WHILE_PAT" or "PAT", pos)
+  skullPatters[i].list[uuid] = time
+  local noPats, noHearts = parseReturns(
+    events:call("skull_pat", entity, prev and "WHILE_PAT" or "PAT", pos)
+  )
+  avatar:store("patpat.noHearts", noHearts)
+  return noPats, noHearts
 end)
 
 --#ENDREGION
 --#REGION ˚♡ Handle patting others ♡˚
 
-local function parseReturns(retTbl)
-  return { _t_contains(retTbl, "%[true"), _t_contains(retTbl, "true%]") }
-end
-
-local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
-  local noPats, noHearts = false, false
-
-  -- Process returns from entity_pat and skull_pat events
-  local returns = parseReturns(ret)
-  noPats, noHearts = noPats or returns[1], noHearts or returns[2]
-
+local function patResponse(avatarVars, noPats, noHearts, entity, block, boundingBox, pos)
   -- Call events for when the player is patting
-  local ret2 = events:call("patting", entity, block, boundingBox,
-    not (noHearts or avatarVars["patpat.noHearts"])) -- Keep old compatibility
-
-  -- Process returns from patting events
-  returns = parseReturns(ret2)
+  local returns = { parseReturns(events:call("patting", entity, block, boundingBox,
+    not (noHearts or avatarVars["patpat.noHearts"]))) } -- Keep old compatibility
   noPats, noHearts = noPats or returns[1], noHearts or returns[2]
 
   -- Play pat animation and swinging
@@ -329,8 +378,8 @@ local function patResponse(avatarVars, ret, entity, block, boundingBox, pos)
   end
 
   -- Emit particles (This module is written in a way to allow you to modify your own particles, please do not modify code directly)
-  if not noHearts and not avatarVars["patpat.noHearts"] then
-    pos = pos - boundingBox.x_z * 0.5 + _v_rand() * boundingBox
+  if not (noHearts or avatarVars["patpat.noHearts"]) then
+    pos = pos - boundingBox.x_z * 0.5 + vectors.random() * boundingBox
     particles[particles:isPresent(cfg.patParticle) and cfg.patParticle or "minecraft:heart"]:pos(pos)
         :scale(1):spawn()
   end
@@ -356,23 +405,92 @@ function events.tick()
   end
 end
 
+local soundCache = {}
+local soundOverrideParsers = {
+  ["func"] = function(entityType, entity)
+    local soundName
+
+    local functionSound = entitySoundOverrides[entityType](entity)
+    soundName = sounds:isPresent(functionSound) and functionSound
+
+    return soundName
+  end,
+  ["sound"] = function(entityType)
+    local soundName
+
+    if not soundCache[entityType] then
+      soundName = entitySoundOverrides[entityType] --[[@as Minecraft.soundID]]
+      soundCache[entityType] = sounds:isPresent(soundName) and soundName
+    else
+      soundName = soundCache[entityType]
+    end
+
+    return soundName
+  end,
+  ["entity"] = function(entityType)
+    local soundName, potentialSounds
+
+    if not soundCache[entityType] then
+      -- Parses mod name and entity name, turning it into a pattern to search for mod sounds
+      local entityPattern = string.format('(%s:entity.%s.-)"',
+        string.match(entitySoundOverrides[entityType] --[[@as Minecraft.entityID]] or entityType,
+          "^(.-):(.-)$"))
+      -- Gmatches all the sounds this mob can play
+      potentialSounds = table.gmatch(soundsRegistry, entityPattern)
+      -- Finds a sound in potential sounds with "ambient" in it
+      soundName = table.match(potentialSounds, string.format(matchPattern, "ambient")) or
+          table.match(potentialSounds, string.format(matchPattern, "idle"))
+      -- Caches the sound for this mob
+      soundCache[entityType] = sounds:isPresent(soundName) and soundName
+    else
+      soundName = soundCache[entityType]
+    end
+
+    if soundName then return soundName end
+
+    if cfg.debug and isHost then
+      if entitySoundOverrides[entityType] and not soundName then
+        printJson("§cEntity sound override function for this entity didn't return a valid sound!\n")
+      elseif potentialSounds[1] then
+        printJson(
+          "§cAmbient sound for the targeted mob could not be found! An entity sound override is recommended to fix this issue. Below is a list of sounds this mob can play.\n")
+        print(potentialSounds)
+      else
+        printJson(
+          "§cCould not find sounds for the targeted mob! An entity sound override is recommended to fix this issue.\n")
+      end
+    end
+  end,
+}
+
+local function getEntitySound(entityType, entity)
+  local override = entitySoundOverrides[entityType]
+  local overrideType = type(override) == "function" and "func" or
+      sounds:isPresent(override --[[@as Minecraft.soundID]]) and "sound" or "entity"
+
+  local soundName = soundOverrideParsers[overrideType](entityType, entity)
+
+  return soundName
+end
+
 --#REGION ˚♡ Entity ♡˚
 
 local function foxpatEntityPing(u)
   if not player:isLoaded() then return end
   local unpackedUUID = unpackUUID(u)
   if not unpackedUUID then return end
-  local entity = _w_entity(unpackedUUID)
+  local entity = world.getEntity(unpackedUUID)
   if not entity then return end
 
   -- Play sounds for entities
-  if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) and not entity:isPlayer() and not entity:isSilent() then
-    local soundName = _s_format("%s:entity.%s.ambient", _s_match(entity:getType(), "^(.-):(.-)$"))
-    if sounds:isPresent(soundName) then
+  if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) and not (entity:isPlayer() or entity:isSilent()) then
+    local soundName = getEntitySound(entity:getType(), entity)
+
+    if soundName then
       local nbt = entity:getNbt()
-      sounds[soundName]:setPos(entity:getPos()):setPitch((cfg.mobSoundPitch or 1) *
-        ((nbt.Age or -(nbt.IsBaby or -1)) >= 0 and 1 or 1.5) +
-        (_m_random() - 0.5) * (cfg.mobSoundRange or 0.25)):play()
+      sounds:playSound(soundName, entity:getPos(), 0.5,
+        (cfg.mobSoundPitch or 1) * ((nbt.Age or -(nbt.IsBaby or -1)) >= 0 and 1 or 1.5) +
+        (math.random() - 0.5) * (cfg.mobSoundRange or 0.25))
     end
   end
 
@@ -380,14 +498,22 @@ local function foxpatEntityPing(u)
   local pos = entity:getPos()
 
   -- Get bounding box or fallback to vanilla bounding box
-  local success, boundingBox = pcall(vector3Index, avatarVars["patpat.boundingBox"], "xyz")
-  if not success then
+  local vecSuccess, boundingBox = pcall(vector3Index, avatarVars["patpat.boundingBox"], "xyz")
+  if not vecSuccess then
     boundingBox = entity:getBoundingBox()
   end
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet"], myUuid, cfg.holdFor or 10)
-  patResponse(avatarVars, ret, entity, nil, boundingBox, pos)
+  local patSuccess, noPats, noHearts = pcall(avatarVars["petpet"], myUuid, cfg.holdFor or 10)
+  if patSuccess then
+    -- Support foxpat 1.0 and 1.1
+    local noPatsHearts = pcall(rawget, noPats, "") and { parseReturns(noPats) }
+    if noPatsHearts then
+      noPats, noHearts = table.unpack(noPatsHearts)
+    end
+  end
+  patResponse(avatarVars, patSuccess and noPats, patSuccess and noHearts, entity, nil, boundingBox,
+    pos)
   patTimer = cfg.holdFor or 10
 end
 
@@ -404,29 +530,30 @@ local function foxpatBlockPing(c)
 
   local blockPos = unpackCoord(c).xyz
 
-  local block = _w_block(blockPos)
+  local block = world.getBlockState(blockPos)
   if block:isAir() or block.id == "minecraft:water" or block.id == "minecraft:lava" then return end
 
   -- Play sounds for blocks
   if cfg.playNoteSounds or (type(cfg.playNoteSounds) == "nil" and true) then
     local blockData = block:getEntityData()
-    local blockMatch = _s_match(block.id, ":(.-)_")
+    local blockMatch = string.match(block.id, ":(.-)_")
     local soundName
     local mobSpawner = blockData and (blockData.SpawnData or blockData.spawn_data)
     local spawnerEntity = mobSpawner and mobSpawner.entity and mobSpawner.entity.id
     if spawnerEntity then
       -- Find sound for mob spawners
       if (cfg.playMobSounds or (type(cfg.playMobSounds) == "nil" and true)) then
-        soundName = _s_format("%s:entity.%s.ambient", _s_match(spawnerEntity, "^(.-):(.-)$"))
+        soundName = getEntitySound(spawnerEntity)
       end
     elseif blockMatch then
       -- Find sound for player skull
       soundName = blockData and blockData.note_block_sound or
-          _t_match(noteBlockImitation, _s_format(matchPattern, blockMatch))
+          table.match(noteBlockImitation, string.format(matchPattern, blockMatch))
+      soundName = sounds:isPresent(soundName) and soundName
     end
-    if sounds:isPresent(soundName) then
-      sounds[soundName]:setPos(blockPos):setPitch((cfg.noteSoundPitch or 1) +
-        (_m_random() - 0.5) * (cfg.noteSoundRange or 0.25)):play()
+    if soundName then
+      sounds:playSound(soundName, blockPos:add(0.5, 0, 0.5), 0.5,
+        (cfg.noteSoundPitch or 1) + (math.random() - 0.5) * (cfg.noteSoundRange or 0.25))
     end
   end
 
@@ -438,9 +565,11 @@ local function foxpatBlockPing(c)
   local boundingBox = blockShape[2]:sub(blockShape[1]):add(0.3, 0, 0.3)
 
   -- Call petpet function and process avatar reaction
-  local _, ret = pcall(avatarVars["petpet.playerHead"], myUuid, cfg.holdFor or 10,
+  local patSuccess, noPats, noHearts = pcall(avatarVars["petpet.playerHead"], myUuid,
+    cfg.holdFor or 10,
     blockPos:unpack())
-  patResponse(avatarVars, ret, nil, block, boundingBox, blockPos:add(0.5, 0, 0.5))
+  patResponse(avatarVars, patSuccess and noPats, patSuccess and noHearts, nil, block, boundingBox,
+    blockPos:add(0.5, 0, 0.5))
   patTimer = cfg.holdFor or 10
 end
 
@@ -459,9 +588,33 @@ end
 ---@class Player
 local PlayerAPI = figuraMetatables.PlayerAPI.__index
 
----`FOXAPI` Returns if the player is currently being patted.
-function PlayerAPI:isPatted()
-  return entityPatterCount > 0
+local function isPatted(...)
+  local args = { ... }
+  local pos
+  if type(args[1]) == "Vector3" then
+    pos = args[1]
+  elseif args[1] then
+    pos = vec(table.unpack(args))
+  end
+  return (pos and (skullPattersCount[tostring(pos)] or 0) or entityPattersCount) > 0
+end
+
+---`FOXAPI` Returns if the player is currently being patted. If a coordinate is provided, returns if a skull at that position is being patted.
+---@param x number?
+---@param y number?
+---@param z number?
+---@return boolean
+---@nodiscard
+function PlayerAPI:isPatted(x, y, z)
+  return isPatted(x, y, z)
+end
+
+---`FOXAPI` Returns if the player is currently being patted. If a coordinate is provided, returns if a skull at that position is being patted.
+---@param pos Vector3?
+---@return boolean
+---@nodiscard
+function PlayerAPI:isPatted(pos)
+  return isPatted(pos)
 end
 
 --#ENDREGION
@@ -476,9 +629,9 @@ local function processRegistry(registry, config)
   local function processList(list)
     for i = 1, #list do
       local str = list[i]
-      if not _t_contains(registry, _s_format('"%s"', str)) then
-        local matchTbl = _t_gmatch(registry, _s_format(matchPattern, str))
-        for j = 1, #matchTbl do _t_insert(list, matchTbl[j]) end
+      if not table.contains(registry, string.format('"%s"', str)) then
+        local matchTbl = table.gmatch(registry, string.format(matchPattern, str))
+        for j = 1, #matchTbl do table.insert(list, matchTbl[j]) end
         list[i] = nil
       end
     end
@@ -487,16 +640,17 @@ local function processRegistry(registry, config)
   processList(whitelist)
   processList(blacklist)
 
-  config.whitelist = _t_invert(whitelist)
-  config.blacklist = _t_invert(blacklist)
+  config.whitelist = table.invert(whitelist)
+  config.blacklist = table.invert(blacklist)
 end
 
-processRegistry(_c_registry("minecraft:entity_type"), lists.entity)
-processRegistry(_c_registry("minecraft:block"), lists.block)
+processRegistry(client.getRegistry("minecraft:entity_type"), lists.entity)
+processRegistry(client.getRegistry("minecraft:block"), lists.block)
 
 --#ENDREGION
 --#REGION ˚♡ Init vars ♡˚
 
+---@type function
 local foxpat
 local shiftHeld
 local patting, patTime, firstPat = false, 0, true
@@ -544,10 +698,14 @@ end
 b.crouch:onPress(function() shiftHeld = true end)
 b.crouch:onRelease(function() shiftHeld = false end)
 
+local shouldPat = true
+
 b.pat:onPress(function()
   if not host:getScreen() and not action_wheel:isEnabled() and player:isLoaded() then
+    shouldPat = foxpat()
+    if not shouldPat then return end
     patting = true
-    return foxpat()
+    return shouldPat
   end
 end)
 b.pat:onRelease(function()
@@ -591,8 +749,9 @@ end
 --#REGION ˚♡ Main pat function ♡˚
 
 local function checkWhitelist(list, id)
-  return not (lists[list].whitelist[id] or _t_contains(lists[list].whitelist, "*")) or
-      (lists[list].blacklist[id] or _t_contains(lists[list].blacklist, "*"))
+  local _list = lists[list]
+  return not (_list.whitelist[id] or table.contains(_list.whitelist, "*")) or
+      (_list.blacklist[id] or table.contains(_list.blacklist, "*"))
 end
 
 local function checkCrouching(vars, self)
@@ -607,26 +766,38 @@ local function checkEmptyHand(vars)
       ((cfg.requireEmptyOffHand or cfg.requireEmptyOffHand) and player:getItem(2).id ~= "minecraft:air")
 end
 
+local printed
 function copyPrint(str)
-  if not (cfg.debug and isHost) then return end
+  if printed then return end
+  printed = true
+  if not cfg.debug then return end
   printJson(toJson({
-    text = str .. " §7(click to copy)",
+    text = str .. " §7(click to copy)\n",
     clickEvent = { action = "copy_to_clipboard", value = str },
   }))
 end
 
 foxpat = function(self)
-  local myPos = player:getPos():add(0, player:getEyeHeight(), 0)
-      :add(isHost and renderer:getEyeOffset() or player:getVariable().eyePos)
+  local successfulPat
+
+  local myPos = player:getPos():add(0, player:getEyeHeight(), 0):add(renderer:getEyeOffset())
 
   local block, hitPos = player:getTargetedBlock(true, 5)
   local dist = (myPos - hitPos):length()
   local isBlock = true
 
+  printed = false
   ---@diagnostic disable-next-line: unbalanced-assignments
-  local entity, entityPos = self and player or
+  local entity = self and player or
       raycast:entity(myPos, myPos + player:getLookDir():mul(5, 5, 5),
-        function(entity) return entity ~= player end)
+        function(entity)
+          if entity ~= player then
+            copyPrint(entity:getType())
+            return not checkWhitelist("entity", entity:getType())
+          end
+          return false
+        end)
+  local entityPos = entity and entity:getPos()
 
   if entity then
     local newDist = (myPos - (entityPos or player:getPos())):length()
@@ -644,10 +815,8 @@ foxpat = function(self)
     local packedCoord = packCoord(blockPos)
     foxpatBlockPing(packedCoord)
     pings.foxpatBlock(packedCoord)
+    successfulPat = true
   else
-    copyPrint(entity:getType())
-    if checkWhitelist("entity", entity:getType()) then return end
-
     local entityVars = entity:getVariable()
     if entityVars["patpat.noPats"] or checkCrouching(entityVars, self) or checkEmptyHand(entityVars) then return end
 
@@ -655,13 +824,16 @@ foxpat = function(self)
     local packedUUID = packUUID(entityUUID)
     foxpatEntityPing(packedUUID)
     pings.foxpatEntity(packedUUID)
+    successfulPat = true
   end
+
   if self then
+    copyPrint("minecraft:player")
     firstSelfPat = cfg.requireCrouch
   else
     firstPat = cfg.requireCrouch
   end
-  return true
+  return successfulPat or self
 end
 
 --#ENDREGION
