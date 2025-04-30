@@ -110,7 +110,7 @@ function events.entity_init()
   -- Check for updates
   local function checkUpdates(mods)
     for _, _mod in pairs(mods) do
-      if (_mod.isAPI and ver[2] or mod[_mod.name]._ver[2]) < _mod.protocol and ignoredUpdates[_mod.name] ~= _mod.protocol then
+      if mod[_mod.name] and (_mod.isAPI and ver[2] or mod[_mod.name]._ver[2]) < _mod.protocol and ignoredUpdates[_mod.name] ~= _mod.protocol then
         updateCount = updateCount + 1
         FOXupdates[updateCount] = _mod
       end
