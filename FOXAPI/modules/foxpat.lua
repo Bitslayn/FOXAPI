@@ -4,7 +4,7 @@ ____  ___ __   __
 | __|/ _ \\ \ / /
 | _|| (_) |> w <
 |_|  \___//_/ \_\
-FOX's Patpat Module v1.2.0
+FOX's Patpat Module v1.2.1
 A FOXAPI Module
 
 Lets you pat other players, entities, and skulls.
@@ -22,7 +22,7 @@ local _module = {
   _api = { "FOXAPI", "1.1.3", 8 },
   _name = "FOX's Patpat Module",
   _desc = "Lets you pat other players, entities, and skulls.",
-  _ver = { "1.2.0", 16 },
+  _ver = { "1.2.1", 17 },
 }
 if not FOXAPI then
   __race = { string.gsub(table.concat({ ... }, "/"), "/", "."), _module }
@@ -106,6 +106,13 @@ local entitySoundOverrides = {
     local nbt = entity:getNbt()
     local isOnGround = nbt and nbt.OnGround and nbt.OnGround == 1
     return isOnGround and "minecraft:entity.breeze.idle_ground" or "minecraft:entity.breeze.idle_air"
+  end,
+  ["minecraft:wolf"] = function(entity)
+    if not entity then return "minecraft:entity.wolf.ambient" end
+    local nbt = entity:getNbt()
+    local variant = nbt.sound_variant and "_" .. nbt.sound_variant:match("minecraft:(.*)") or ""
+    local mood = nbt.AngerTime == 0 and "ambient" or "growl"
+    return ("minecraft:entity.wolf%s.%s"):format(variant, mood)
   end,
 }
 
@@ -787,7 +794,6 @@ foxpat = function(self)
   local isBlock = true
 
   printed = false
-  ---@diagnostic disable-next-line: unbalanced-assignments
   local entity = self and player or
       raycast:entity(myPos, myPos + player:getLookDir():mul(5, 5, 5),
         function(entity)
