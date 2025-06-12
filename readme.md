@@ -1,3 +1,9 @@
+> [!CAUTION]
+> IMPORTANT IMPORTANT IMPORTANT
+> I will not stress this enough READ THE ENTIRE DOWNLOAD INSTRUCTIONS BEFORE USING FOXAPI
+> FOXAPI is a MODULAR API, meaning its modules CAN AND SHOULD BE DELETED BY YOU after downloading
+> Downloading FOXAPI DOWNLOADS ALL MODULES
+
 ## Download Instructions
 
 1) [Download](https://download-directory.github.io/?url=https%3A%2F%2Fgithub.com%2FBitslayn%2FFOXAPI%2Ftree%2Fmain%2FFOXAPI) the entire FOXAPI folder containing `api.lua` and all its modules.
